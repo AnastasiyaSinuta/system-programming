@@ -2,7 +2,7 @@
 # valgrind --leak-check=full ./lab11aasN32511 -v > valgrind.txt 2>&1
 
 CC=gcc
-CFLAGS=-Wall -Wextra -Werror
+CFLAGS=-O3 -Wall -Wextra -Werror
 
 ./PHONY: all
 
