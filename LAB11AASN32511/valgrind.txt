@@ -1,15 +1,18 @@
-==25430== Memcheck, a memory error detector
-==25430== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==25430== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
-==25430== Command: ./lab11aasN32511
-==25430== 
-Your request is invalid. Use command '-h' to display help on options.
-==25430== 
-==25430== HEAP SUMMARY:
-==25430==     in use at exit: 0 bytes in 0 blocks
-==25430==   total heap usage: 1 allocs, 1 frees, 4,096 bytes allocated
-==25430== 
-==25430== All heap blocks were freed -- no leaks are possible
-==25430== 
-==25430== For lists of detected and suppressed errors, rerun with: -s
-==25430== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==29911== Memcheck, a memory error detector
+==29911== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==29911== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==29911== Command: ./lab11aasN32511 -v
+==29911== 
+Version: 1.0
+Autor: Sinuta Anastasiya Anatolevna
+Group: N32511
+Variant: 5
+==29911== 
+==29911== HEAP SUMMARY:
+==29911==     in use at exit: 0 bytes in 0 blocks
+==29911==   total heap usage: 1 allocs, 1 frees, 4,096 bytes allocated
+==29911== 
+==29911== All heap blocks were freed -- no leaks are possible
+==29911== 
+==29911== For lists of detected and suppressed errors, rerun with: -s
+==29911== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

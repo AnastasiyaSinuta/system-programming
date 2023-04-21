@@ -1,5 +1,5 @@
 # gcc -g -o lab11aasN32511 lab11aasN32511.c walk_dir.c options.c
-# valgrind --leak-check=full ./lab11aasN32511 > valgrind.txt 2>&1
+# valgrind --leak-check=full ./lab11aasN32511 -v > valgrind.txt 2>&1
 
 CC=gcc
 CFLAGS=-Wall -Wextra -Werror
