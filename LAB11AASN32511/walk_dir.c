@@ -7,7 +7,7 @@
 #include <fts.h>
  
 void found_file(int debug, FTSENT *ent, const char* argv_target) {
-    if (debug) fprintf(stderr, "DEBUG: Found file \"%s\"\n", ent->fts_name);
+    if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);
     // Открываем файл для чтения
     FILE *fp = fopen(ent->fts_path, "rb");
     if (fp == NULL) {
@@ -47,7 +47,7 @@ void found_file(int debug, FTSENT *ent, const char* argv_target) {
         printf("File %s contains the target sequence of bytes at position %ld\n", ent->fts_path, pos);
     }
     else {
-        if (debug) printf("File %s does not contain the target sequence of bytes\n", ent->fts_path);
+        if (debug) printf("debug: File %s does not contain the target sequence of bytes\n", ent->fts_path);
     }
     
     // Освобождаем выделенную память и закрываем файл
@@ -73,10 +73,10 @@ void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
         }
         switch (ent->fts_info) {
             case FTS_D:         // Каталог, посещаемый в прямом порядке
-                if (debug) fprintf(stderr, "DEBUG: Entering directory\"%s\"\n", ent->fts_name);
+                if (debug) fprintf(stderr, "debug: Entering the \"%s\" directory\n", ent->fts_name);
                 break;
             case FTS_DC:        // Каталог, вызвавший зацикливание по дереву
-                if (debug) fprintf(stderr, "DEBUG: Ignoring cycle directory \"%s\"\n", ent->fts_name);
+                if (debug) fprintf(stderr, "debug: Ignoring cycle directory \"%s\"\n", ent->fts_name);
                 break;
             case FTS_DEFAULT:   // Любая структура Fa FTSENT, представляющая тип файла, неявно описанного одним из значений Fa fts_info
             case FTS_DNR:       // Каталог, который не может быть прочитан. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
@@ -84,7 +84,7 @@ void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
                 break;
             case FTS_DOT:       // Файл, названный `.' или `..' который не был определен как файловое имя в fts_open ()
             case FTS_DP:        // Каталог, посещаемый в обратном порядке. Содержимое структуры Fa FTSENT будет неизменно, как если-бы он посещался в прямом порядке, то есть с полем Fa fts_info, установленным в FTS_D
-                if (debug) fprintf(stderr, "DEBUG: Exiting directory\"%s\"\n", ent->fts_name);
+                if (debug) fprintf(stderr, "debug: Exiting directory\"%s\"\n", ent->fts_name);
                 break;
             case FTS_ERR:       // Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
@@ -100,10 +100,10 @@ void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
             case FTS_SL:        // Символьная ссылка
                 break;
             case FTS_SLNONE:    // Символьная ссылка, указывающая на несуществующий объект. Содержимое поля Fa fts_statp определяет ссылку на информацию о свойствах файла для самой символьной ссылки
-                if (debug) fprintf(stderr, "DEBUG: Ignoring link \"%s\"\n", ent->fts_name);
+                if (debug) fprintf(stderr, "debug: Ignoring link \"%s\"\n", ent->fts_name);
                 break;
         }
     }   
     fts_close(fts_h);
-    if (debug) fprintf(stderr, "DEBUG: Done. Quitting.\n");
+    if (debug) fprintf(stderr, "debug: End debugging.\n");
 }

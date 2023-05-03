@@ -1,6 +1,3 @@
-# gcc -g -o lab11aasN32511 lab11aasN32511.c walk_dir.c options.c
-# valgrind --leak-check=full ./lab11aasN32511 -v > valgrind.txt 2>&1
-
 CC=gcc
 CFLAGS=-O3 -Wall -Wextra -Werror
 
@@ -26,4 +23,7 @@ error_message.o: error_message.c
 
 valgrind:
 	gcc -g -o lab11aasN32511 lab11aasN32511.c LAB11DEBUG.c options.c walk_dir.c error_message.c
-	valgrind --leak-check=full ./lab11aasN32511 -v > valgrind.txt 2>&1
+	valgrind --leak-check=full ./lab11aasN32511 /home/vboxuser/Desktop/tests "раф" > valgrind.txt 2>&1
+
+lavand:
+	LAB11DEBUG=1 ./lab11aasN32511 /home/vboxuser/Desktop/tests "лавандовый раф"

@@ -9,12 +9,12 @@ void error_message(int);
 void options(int debug, const char* name, const char* option) {
     if (strcmp(option, "-v") == 0 || strcmp(option, "--version") == 0) {
         print_version(debug);
-        if (debug) fprintf(stderr, "DEBUG: Done. Quitting.\n");
+        if (debug) fprintf(stderr, "debug: End debugging.\n");
         exit(EXIT_SUCCESS);
     }
     else if (strcmp(option, "-h") == 0 || strcmp(option, "--help") == 0) {
         print_help(debug, name);
-        if (debug) fprintf(stderr, "DEBUG: Done. Quitting.\n");
+        if (debug) fprintf(stderr, "debug: End debugging.\n");
         exit(EXIT_SUCCESS);
     }
     else {  
@@ -23,7 +23,7 @@ void options(int debug, const char* name, const char* option) {
 }
 
 void print_version(int debug) {
-    if (debug) fprintf(stderr, "DEBUG: Outputting \"Help\" option.\n");
+    if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
     char *Version = "1.0";
     const char *Autor = "Sinuta Anastasiya Anatolevna";
     const char *Group = "N32511";
@@ -32,7 +32,7 @@ void print_version(int debug) {
 }
 
 void print_help(int debug, const char* name) {
-    if (debug) fprintf(stderr, "DEBUG: Outputting \"Version\" option.\n");
+    if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
     printf("Usage: %s [options] [directory] [target]...\n", name);
     printf("\nOptions:\n");
     const char* options[] = {

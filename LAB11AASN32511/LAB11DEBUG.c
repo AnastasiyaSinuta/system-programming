@@ -11,17 +11,17 @@ int debug_mode() {
 
     if (getenv(envvar)) {
         if (snprintf(debug_var, DEBUG_BUFSIZE, "%s", getenv(envvar)) >= DEBUG_BUFSIZE) {
-            fprintf(stderr, "DEBUG_BUFSIZE == %d is too small. Application terminated.\n", DEBUG_BUFSIZE);
+            fprintf(stderr, "debug: DEBUG_BUFSIZE == %d is not enough. Application terminated with an error.\n", DEBUG_BUFSIZE);
             exit(EXIT_FAILURE);
         }
 
         if (strcmp(debug_var, "1") == 0) {
             debug = 1;
-            fprintf(stderr, "DEBUG: Application will be executed in Debug mode.\n");
+            fprintf(stderr, "debug: Debug mode enabled.\n");
         }
         
         else {
-            fprintf(stderr, "DEBUG: Debug variable found, but it is not equal to 1. Application will NOT be executed in Debug mode.\n");
+            fprintf(stderr, "debug: Debug mode not enabled.\n");
         }
     }
     return debug;
