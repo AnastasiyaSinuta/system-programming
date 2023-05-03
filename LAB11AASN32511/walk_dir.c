@@ -6,12 +6,20 @@
 #include <sys/stat.h>
 #include <fts.h>
 
+void found_file(int debug, FTSENT *ent, const char* argv_target) {
+    if (debug) fprintf(stderr, "DEBUG: Found file \"%s\"\n", ent->fts_name);
+                if (strstr(ent->fts_name, argv_target) != NULL) {
+                    if (debug) fprintf(stderr, "DEBUG: Found target in \"%s\"\n", ent->fts_name);
+                    printf("%s\n", ent->fts_path); // выводим полный путь к файлу
+                }
+}
+
 void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
     char *paths[2] = {(char*)argv_dir, NULL};
     FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
     if (!fts_h) {
         fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
-        return;    
+        return;
     }
     while (1) {
         errno = 0;
@@ -22,25 +30,38 @@ void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
             else
                 break;      // В каталоге больше ничего нет
         }
-        switch (ent->fts_info) { 
-            case FTS_F:  // если это файл, то ищем заданную строку 
-                if (strstr(ent->fts_name, argv_target) != NULL) { 
-                    printf("%s\n", ent->fts_path); // выводим полный путь к файлу 
-                } 
-                break; 
-            case FTS_D:  // если это каталог, то переходим в него 
-                break; 
-            case FTS_DC: 
-            case FTS_DEFAULT: 
-            case FTS_DNR: 
-            case FTS_ERR: 
-            case FTS_NS: 
-                // произошла ошибка, выводим ее сообщение и завершаем программу 
-                fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno)); 
-                exit(EXIT_FAILURE); 
-                break; 
-        } 
-    }
-    
+        switch (ent->fts_info) {
+            case FTS_D:         // Каталог, посещаемый в прямом порядке
+                if (debug) fprintf(stderr, "DEBUG: Entering directory\"%s\"\n", ent->fts_name);
+                break;
+            case FTS_DC:        // Каталог, вызвавший зацикливание по дереву
+                if (debug) fprintf(stderr, "DEBUG: Ignoring cycle directory \"%s\"\n", ent->fts_name);
+                break;
+            case FTS_DEFAULT:   // Любая структура Fa FTSENT, представляющая тип файла, неявно описанного одним из значений Fa fts_info
+            case FTS_DNR:       // Каталог, который не может быть прочитан. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
+                fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
+                break;
+            case FTS_DOT:       // Файл, названный `.' или `..' который не был определен как файловое имя в fts_open ()
+            case FTS_DP:        // Каталог, посещаемый в обратном порядке. Содержимое структуры Fa FTSENT будет неизменно, как если-бы он посещался в прямом порядке, то есть с полем Fa fts_info, установленным в FTS_D
+                if (debug) fprintf(stderr, "DEBUG: Exiting directory\"%s\"\n", ent->fts_name);
+                break;
+            case FTS_ERR:       // Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
+                fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
+                break;
+            case FTS_F:         // Простой файл
+                found_file(debug, ent, argv_target);
+                break;
+            case FTS_NS:        // Файл, для которого нет доступной информации stat(2). Содержимое поля Fa fts_statp не определено. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
+                fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
+                break;
+            case FTS_NSOK:      // Файл, для которого информация о stat(2) не была запрошена. Содержимое поля Fa fts_statp не определено
+                break;
+            case FTS_SL:        // Символьная ссылка
+                break;
+            case FTS_SLNONE:    // Символьная ссылка, указывающая на несуществующий объект. Содержимое поля Fa fts_statp определяет ссылку на информацию о свойствах файла для самой символьной ссылки
+                if (debug) fprintf(stderr, "DEBUG: Ignoring link \"%s\"\n", ent->fts_name);
+                break;
+        }
+    }   
     fts_close(fts_h);
 }
