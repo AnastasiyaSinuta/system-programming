@@ -1,17 +1,58 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <errno.h> 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
-
+ 
 void found_file(int debug, FTSENT *ent, const char* argv_target) {
     if (debug) fprintf(stderr, "DEBUG: Found file \"%s\"\n", ent->fts_name);
-                if (strstr(ent->fts_name, argv_target) != NULL) {
-                    if (debug) fprintf(stderr, "DEBUG: Found target in \"%s\"\n", ent->fts_name);
-                    printf("%s\n", ent->fts_path); // выводим полный путь к файлу
-                }
+    // Открываем файл для чтения
+    FILE *fp = fopen(ent->fts_path, "rb");
+    if (fp == NULL) {
+        fprintf(stderr, "Error opening file %s: %s\n", ent->fts_path, strerror(errno));
+        return;
+    }
+    
+    // Получаем размер файла
+    fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    rewind(fp);
+    
+    // Выделяем память для хранения содержимого файла
+    char *content = malloc(fsize + 1);
+    if (content == NULL) {
+        fprintf(stderr, "Error allocating memory: %s\n", strerror(errno));
+        fclose(fp);
+        return;
+    }
+    
+    // Читаем содержимое файла
+    if (fread(content, fsize, 1, fp) != 1) {
+        fprintf(stderr, "Error reading file %s: %s\n", ent->fts_path, strerror(errno));
+        free(content);
+        fclose(fp);
+        return;
+    }
+    
+    // Добавляем завершающий нулевой символ
+    content[fsize] = '\0';
+    
+    // Ищем последовательность байтов в содержимом файла
+    char *result = strstr(content, argv_target);
+    if (result != NULL) {
+        // Вычисляем позицию, где найдена последовательность
+        long pos = result - content;
+        printf("File %s contains the target sequence of bytes at position %ld\n", ent->fts_path, pos);
+    }
+    else {
+        if (debug) printf("File %s does not contain the target sequence of bytes\n", ent->fts_path);
+    }
+    
+    // Освобождаем выделенную память и закрываем файл
+    free(content);
+    fclose(fp);
 }
 
 void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
@@ -64,4 +105,5 @@ void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
         }
     }   
     fts_close(fts_h);
+    if (debug) fprintf(stderr, "DEBUG: Done. Quitting.\n");
 }

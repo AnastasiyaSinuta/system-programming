@@ -4,19 +4,21 @@
 
 void print_version(int);
 void print_help(int, const char*);
-void usage_message(int);
+void error_message(int);
 
-void options(int debug, const char* argv) {
-    if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0) {
+void options(int debug, const char* name, const char* option) {
+    if (strcmp(option, "-v") == 0 || strcmp(option, "--version") == 0) {
         print_version(debug);
+        if (debug) fprintf(stderr, "DEBUG: Done. Quitting.\n");
         exit(EXIT_SUCCESS);
     }
-    else if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
-        print_help(debug, argv[0]);
+    else if (strcmp(option, "-h") == 0 || strcmp(option, "--help") == 0) {
+        print_help(debug, name);
+        if (debug) fprintf(stderr, "DEBUG: Done. Quitting.\n");
         exit(EXIT_SUCCESS);
     }
     else {  
-        usage_message(debug);
+        error_message(debug);
     }
 }
 
