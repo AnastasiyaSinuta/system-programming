@@ -6,14 +6,13 @@
 #include <sys/stat.h>
 #include <fts.h>
 
-void walk_dir(const char* argv_dir, const char* argv_target) {
-    char* paths[] = { (char*)argv_dir, NULL }; 
-    FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, /*comp_func*/NULL);
+void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
+    char *paths[2] = {(char*)argv_dir, NULL};
+    FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
     if (!fts_h) {
         fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
         return;    
     }
-    
     while (1) {
         errno = 0;
         FTSENT *ent = fts_read(fts_h);
@@ -23,7 +22,6 @@ void walk_dir(const char* argv_dir, const char* argv_target) {
             else
                 break;      // В каталоге больше ничего нет
         }
-
         switch (ent->fts_info) { 
             case FTS_F:  // если это файл, то ищем заданную строку 
                 if (strstr(ent->fts_name, argv_target) != NULL) { 

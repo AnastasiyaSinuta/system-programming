@@ -19,3 +19,7 @@ walk_dir.o: walk_dir.c
 	$(CC) $(CFLAGS) -c walk_dir.c
 options.o: options.c
 	$(CC) $(CFLAGS) -c options.c
+
+valgrind:
+	gcc -g -o lab11aasN32511 lab11aasN32511.c walk_dir.c options.c
+	valgrind --leak-check=full ./lab11aasN32511 -v > valgrind.txt 2>&1
