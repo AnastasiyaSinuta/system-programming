@@ -23,7 +23,7 @@ void options(int debug, const char* name, const char* option) {
 }
 
 void print_version(int debug) {
-    if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
+    if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
     char *Version = "1.0";
     const char *Autor = "Sinuta Anastasiya Anatolevna";
     const char *Group = "N32511";
@@ -32,7 +32,7 @@ void print_version(int debug) {
 }
 
 void print_help(int debug, const char* name) {
-    if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
+    if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
     printf("Usage: %s [options] [directory] [target]...\n", name);
     printf("\nOptions:\n");
     const char* options[] = {

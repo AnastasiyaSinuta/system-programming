@@ -3,13 +3,13 @@
 #include <string.h>
 
 int debug_mode();
-void options(int, char*, char*);
-void walk_dir(int, char*, char*);
-void error_message(int);
+//void options(int, char*, char*);
+//void walk_dir(int, char*, char*);
+//void error_message(int);
 
 int main(int argc, char *argv[]) {
     int debug = debug_mode();
-    switch (argc) {
+    /*switch (argc) {
         case 2:
             options(debug, argv[0], argv[1]);
             break;
@@ -19,6 +19,6 @@ int main(int argc, char *argv[]) {
         default:
             error_message(debug);
             break;
-    }
+    }*/
     return EXIT_SUCCESS;
 }
