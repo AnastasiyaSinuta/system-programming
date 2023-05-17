@@ -6,7 +6,7 @@
 
 int debug_mode() {
     char debug_var[DEBUG_BUFSIZE];
-    char *envvar = "LAB11DEBUG";
+    char *envvar = "LAB1DEBUG";
     int debug = 0;
 
     if (getenv(envvar)) {
