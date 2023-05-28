@@ -1,20 +1,31 @@
-CC=gcc
-CFLAGS=-O3 -Wall -Wextra -Werror
+CFLAGS=-Wall -Wextra -Werror -O2
+TARGETS=lab1aasN32511
 
-./PHONY: all
+.PHONY: all clean
 
-all: lab12aasN32511
+all: lab1aasN32511
 
-clean: 
-	@rm -rf *.o lab12aasN32511
+clean:
+	rm -rf *.o $(TARGETS)
 
-lab12aasN32511: lab12aasN32511.o LAB12DEBUG.o
-	$(CC) $(CFLAGS) -o $@ $^
-lab12aasN32511.o: lab12aasN32511.c
-	$(CC) $(CFLAGS) -c lab12aasN32511.c
-LAB12DEBUG.O: LAB12DEBUG.c
-	$(CC) $(CFLAGS) -c LAB12DEBUG.c
+lab1aasN32511: lab1aasN32511.o LAB1DEBUG.o walk_dir.o
+	gcc $(CFLAGS) -o $@ $^
+
+lab1aasN32511.o: lab1aasN32511.c
+	gcc $(CFLAGS) -c lab1aasN32511.c
+
+LAB1DEBUG.o: LAB1DEBUG.c
+	gcc $(CFLAGS) -c LAB1DEBUG.c
+
+walk_dir.o: walk_dir.c
+	gcc $(CFLAGS) -c walk_dir.c
 
 valgrind:
-	gcc -g -o lab12aasN32511 lab12aasN32511.c LAB12DEBUG.c
-	valgrind --leak-check=full ./lab12aasN32511> valgrind.txt 2>&1
+	gcc -g -o lab1aasN32511 lab1aasN32511.c LAB1DEBUG.c
+	valgrind --leak-check=full ./lab1aasN32511> valgrind.txt 2>&1
+
+search:
+	./lab1aasN32511 /home/vboxuser/Desktop/tests/test.txt "0b110110100001"
+
+search_debug:
+	LAB1DEBUG=1 ./lab1aasN32511 /home/vboxuser/Desktop/tests "0b110110100001"

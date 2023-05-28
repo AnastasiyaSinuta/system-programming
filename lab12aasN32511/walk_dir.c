@@ -1,7 +1,3 @@
-int walk_dir(const char *fname) {
-    return 1;
-}
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

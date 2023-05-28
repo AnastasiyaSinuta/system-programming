@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libaasN32511.h"
+//#include "libaasN32511.h"
 
 int debug_mode();
-
+void walk_dir(int, char*, char*);
+//int check(int, char*, char*);
+/*
 static struct plugin_option options[] = {
     {
         {
@@ -31,15 +33,20 @@ int plugin_get_info(struct plugin_info* ppi) {
 
     return 0;
 }
-
+*/
 int main(int argc, char *argv[]) {
     int debug = debug_mode();
-    struct plugin_info *lib;
+    /*struct plugin_info *lib;
     if (!plugin_get_info(lib)) {
         printf("Success");
     }
     else {
         printf("Sorry");
+    }*/
+    //walk_dir(debug, argv[1], argv[2]);
+    if (argc == 3)
+    {
+        walk_dir(debug, argv[1], argv[2]);
     }
     return EXIT_SUCCESS;
 }
