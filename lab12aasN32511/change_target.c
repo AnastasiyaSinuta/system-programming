@@ -8,7 +8,7 @@ int convertToDecimal(const char* number) {
     int i = 0; 
     int decimal = 0; 
  
-    if (number[0] == 'o' && number[1] == 'b') { 
+    if (number[0] == '0' && number[1] == 'b') { 
         base = 2; 
         i = 2; 
     } else if (number[0] == '0' && (number[1] == 'x' || number[1] == 'X')) { 
@@ -39,4 +39,4 @@ int convertToDecimal(const char* number) {
     } 
  
     return decimal; 
-} 
+}

@@ -9,7 +9,7 @@ clean:
 	rm -rf *.o $(TARGETS)
 
 lab1aasN32511: lab1aasN32511.o LAB1DEBUG.o walk_dir.o change_target.o
-	gcc $(CFLAGS) -o $@ $^
+	gcc $(CFLAGS) -o $@ $^ -lm
 
 lab1aasN32511.o: lab1aasN32511.c
 	gcc $(CFLAGS) -c lab1aasN32511.c
