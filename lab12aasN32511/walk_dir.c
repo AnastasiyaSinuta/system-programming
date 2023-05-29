@@ -5,33 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
-
-int number_system(char* target) {
-    if (strncmp(target, "0b", 2) == 0) {
-        return 2;
-    }
-    else if (strncmp(target, "0x", 2) == 0) {
-        return 16;
-    }
-    else {
-        return 10;
-    }
-}
-
-char* change_str(const char* argv_target) {
-    char* target = malloc(strlen(argv_target) + 1);  // Выделение памяти для строки target
-    strcpy(target, argv_target);
-    int ss = number_system(target);
-    if (ss == 2 || ss == 16) {    
-        size_t target_length = strlen(target);
-        if (target_length >= 2) {        
-            memmove(target, target + 2, target_length - 1);
-            target[target_length - 2] = '\0';  // Обновление завершающего нулевого символа    
-        }
-    }
-    return target;
-}
-
+ 
 void found_file(int debug, FTSENT *ent, const char* argv_target) {
     if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);
     // Открываем файл для чтения
@@ -41,7 +15,7 @@ void found_file(int debug, FTSENT *ent, const char* argv_target) {
         return;
     }
     
-    /*// Получаем размер файла
+    // Получаем размер файла
     fseek(fp, 0, SEEK_END);
     long fsize = ftell(fp);
     rewind(fp);
@@ -63,41 +37,9 @@ void found_file(int debug, FTSENT *ent, const char* argv_target) {
     }
     
     // Добавляем завершающий нулевой символ
-    content[fsize] = '\0';*/
-
-    char buffer[256];
-    // Читаем содержимое файла и ищем заданную последовательность битов 
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) { 
-        // Удаляем символы новой строки из буфера 
-        buffer[strcspn(buffer, "\n")] = '\0'; 
-
-        // Преобразуем битовую последовательность в число 
-        unsigned long long fileValue = strtoull(buffer, NULL, 0); 
-
-        // Преобразуем заданную битовую последовательность в число 
-        unsigned long long bitSeq = strtoull(argv_target, NULL, 0); 
- 
-        // Сравниваем битовые последовательности 
-        if ((fileValue & bitSeq) == bitSeq) { 
-            printf("Найден файл: %s\n", ent->fts_path); 
-            break;  // Прекращаем чтение файла после первого совпадения 
-        } 
-    }
-
-
-
-    /*// Конвертируем битовую последовательность в байты
-    unsigned long long bit_sequence_value = strtoull(argv_target, NULL, ss);
-    unsigned char* bit_sequence_bytes = (unsigned char*)&bit_sequence_value;
-
-    // Проверяем, содержит ли файл заданную битовую последовательность
-    if (memcmp(content, bit_sequence_bytes, strlen(argv_target) / 8) == 0) {
-        printf("File %s contains the target sequence of bytes at position\n", ent->fts_path);
-    }
-    else {
-        if (debug) printf("debug: File %s does not contain the target sequence of bytes\n", ent->fts_path);
-    }*/
-    /*// Ищем последовательность байтов в содержимом файла
+    content[fsize] = '\0';
+    
+    // Ищем последовательность байтов в содержимом файла
     char *result = strstr(content, argv_target);
     if (result != NULL) {
         // Вычисляем позицию, где найдена последовательность
@@ -106,10 +48,10 @@ void found_file(int debug, FTSENT *ent, const char* argv_target) {
     }
     else {
         if (debug) printf("debug: File %s does not contain the target sequence of bytes\n", ent->fts_path);
-    }*/
+    }
     
     // Освобождаем выделенную память и закрываем файл
-    //free(content);
+    free(content);
     fclose(fp);
 }
 
@@ -120,8 +62,6 @@ void walk_dir(int debug, const char* argv_dir, const char* argv_target) {
         fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
         return;
     }
-    //char* target = change_str(argv_target);
-    //int ss = number_system((char*)argv_target);
     while (1) {
         errno = 0;
         FTSENT *ent = fts_read(fts_h);
