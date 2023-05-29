@@ -28,4 +28,4 @@ search:
 	./lab1aasN32511 /home/vboxuser/Desktop/tests/test.txt "0b110110100001"
 
 search_debug:
-	LAB1DEBUG=1 ./lab1aasN32511 /home/vboxuser/Desktop/tests "0b110110100001"
+	LAB1DEBUG=1 ./lab1aasN32511 /home/vboxuser/Desktop/tests "0b101010"

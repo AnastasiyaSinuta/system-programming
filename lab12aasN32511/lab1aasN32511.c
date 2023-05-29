@@ -43,10 +43,10 @@ int main(int argc, char *argv[]) {
     else {
         printf("Sorry");
     }*/
-    //walk_dir(debug, argv[1], argv[2]);
-    if (argc == 3)
-    {
-        walk_dir(debug, argv[1], argv[2]);
+    if (argc != 3) { 
+        printf("Using: %s <dir> <target>\n", argv[0]); 
+        return EXIT_FAILURE; 
     }
+    walk_dir(debug, argv[1], argv[2]);
     return EXIT_SUCCESS;
 }
