@@ -28,7 +28,7 @@ valgrind:
 	valgrind --leak-check=full ./lab1aasN32511> valgrind.txt 2>&1
 
 search:
-	./lab1aasN32511 /home/vboxuser/Desktop/tests "0b110110100001"
+	./lab1aasN32511 /home/anastasiya/Desktop/tests "0b110110100001"
 
 search_debug:
-	LAB1DEBUG=1 ./lab1aasN32511 /home/vboxuser/Desktop/tests "0b110110100001"
+	LAB1DEBUG=1 ./lab1aasN32511 /home/anastasiya/Desktop/tests "0b110110100001"
