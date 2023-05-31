@@ -5,11 +5,11 @@
 #include "plugin_api.h"
 #include <stdarg.h>
 
-static char *g_plugin_purpose = "Find files, which the most frequent byte is input byte.";
-static char *g_plugin_author = "Sinuta Anastasiyajxbr";
+static char *g_plugin_purpose = "Search for files containing a given sequence of bits.";
+static char *g_plugin_author = "Sinuta Anastasiya";
 static struct plugin_option g_po_arr[] = {
     {
-        {"freq-byte",
+        {"bit-seq",
            1,
            0, 0,
         },
