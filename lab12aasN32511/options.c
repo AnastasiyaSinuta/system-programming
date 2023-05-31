@@ -7,6 +7,7 @@ void print_help(int, const char*);
 void plugins_dir();
 void and_operation();
 void or_operation();
+void inverse_ooperation();
 
 void options(int debug, char* name, char* option) {
     if (strcmp(option, "-v") == 0) {
@@ -23,6 +24,9 @@ void options(int debug, char* name, char* option) {
     }
     else if (strcmp(option, "-O") == 0) {
         or_operation();
+    }
+    else if (strcmp(option, "-N") == 0) {
+        inverse_operation();
     }
     else return;
     if (debug) fprintf(stderr, "debug: End debugging.\n");
@@ -70,5 +74,9 @@ void and_operation() {
 }
 
 void or_operation() {
+    printf("Еще не сделано\n");
+}
+
+void inverse_operation() {
     printf("Еще не сделано\n");
 }
