@@ -1,174 +1,134 @@
-#include <stdlib.h>
-#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <fts.h>
+#include <errno.h>
+#include <math.h>
 #include "plugin_api.h"
-#include <stdarg.h>
 
-static char *g_plugin_purpose = "Search for files containing a given sequence of bits.";
-static char *g_plugin_author = "Sinuta Anastasiya";
-static struct plugin_option g_po_arr[] = {
+static struct plugin_option arr[] = {
     {
         {"bit-seq",
            1,
            0, 0,
         },
-    "Target value of a byte"
+    "Target sequence of bits"
     }
 };
-
-static int g_po_arr_len = sizeof(g_po_arr)/sizeof(g_po_arr[0]);
 
 int plugin_get_info(struct plugin_info* ppi) {
     if (!ppi) {
         fprintf(stderr, "ERROR: invalid argument\n");
         return -1;
     }
-
-    ppi->plugin_purpose = g_plugin_purpose;
-    ppi->plugin_author = g_plugin_author;
-    ppi->sup_opts_len = g_po_arr_len;
-    ppi->sup_opts = g_po_arr;
+    ppi->plugin_purpose = "Search for files containing a given sequence of bits.";
+    ppi->plugin_author = "Sinuta Anastasiya";
+    ppi->sup_opts_len = sizeof(arr)/sizeof(arr[0]);
+    ppi->sup_opts = arr;
 
     return 0;
 }
-int processDec(char *str, int size){
-    //have to be less than 256
-    int number=0;
-    for(int i=0;i<size;++i){
-        if(!(str[i]>='0' && str[i]<='9'))
-            return -1;
-        number*=10;
-        number+= (str[i]-'0');
-        if(number>=256)
-            return -1;
+
+int convertToDecimal(const char* number) {
+    int base = 0;
+    int i = 0;
+    int decimal = 0;
+    
+    if (number[0] == '0' && number[1] == 'b') {
+        base = 2;
+        i = 2;
+    } else if (number[0] == '0' && (number[1] == 'x' || number[1] == 'X')) {
+        base = 16;
+        i = 2;
+    } else {
+        return (char*) number;
     }
-    return number;
+    
+    int len = strlen(number);
+    for (; i < len; i++) {
+        char digit = number[i];
+        int value;
+        
+        if (digit >= '0' && digit <= '9') {
+            value = digit - '0';
+        } else if (digit >= 'A' && digit <= 'F') {
+            value = 10 + (digit - 'A');
+        } else if (digit >= 'a' && digit <= 'f') {
+            value = 10 + (digit - 'a');
+        } else {
+            char* error = "Invalid number format. Non-numeric digit found.";
+            return error;
+        }
+
+        decimal += value * pow(base, len - i - 1);
+    }
+    return decimal;
 }
 
-int processHex(char *str, int size){
-    //have to be less than 256
-    if(size == 2)
-        return -1;
-    int number=0;
-    for(int i=2;i<size;++i){
-        if(!(str[i]>='0' && (str[i])<=('9'))&&
-            !(str[i]>='A' && (str[i])<=('F'))&&
-            !(str[i]>='a' && (str[i])<=('f'))
-            )
-            return -1;
-        number*=16;
-        if((str[i])>=('a') && (str[i])<=('f')){
-            number += (10 + (str[i])-('a'));
-        }
-        if((str[i])>=('A') && (str[i])<=('F')){
-            number += (10 + (str[i])-('A'));
-        }
-        if((str[i])>=('0') && (str[i])<=('9')){
-            number += ((str[i])-('0'));
-        }
-        if(number>=256)
-            return -1;
-    }
-    return number;
-}
-
-int processBin(char *str, int size){
-    //have to be less than 256
-    if(size==2)
-        return -1;
-    int number=0;
-    for(int i=2;i<size;++i){
-        if(!((str[i])>=('0') && (str[i])<=('1')))
-            return -1;
-        number*=2;
-        number+= ((str[i])-('0'));
-        if(number>=256)
-            return -1;
-    }
-    return number;
-}
-
-int processFreqByte(char *str){
-    int size = 0;
-    while(str[size]){
-        size++;
-    }
-    if(size==0){
-        return -1;
-    }
-    if(size < 3){   
-        return processDec(str, size);
-    }
-    if(str[0] == '0' && str[1]=='x'){
-        return processHex(str, size);
-    }
-    if(str[0] == '0' && str[1]=='b'){
-        return processBin(str, size);
-    }
-    return processDec(str, size);
-}
-int plugin_process_file(const char * fileName, struct option paramOptions[], size_t paramOptionsSize){
-    if (! fileName || !paramOptions || paramOptionsSize <= 0){
+int plugin_process_file(const char *fname, struct option in_opts[], size_t in_opts_len) {
+    if (! fname || !in_opts || in_opts_len <= 0){
         errno = EINVAL;
         return -1;
     }
-    int*rightFile = (int*)malloc(sizeof(int) * paramOptionsSize);
-    if (!rightFile){
-        perror("malloc");
-        return -1;
-    }
-    for (size_t i = 0; i < paramOptionsSize; i++)
-       rightFile[i] = 0;
-    FILE *  fileRef;
+
+    if (getenv("LAB1DEBUG")) fprintf(stderr, "debug: Found file \"%s\"\n", (char*)fname);
     
-    for (size_t i = 0; i < paramOptionsSize; i++){
-        int requestByte = processFreqByte(((char *)paramOptions[i].flag));
-        if (requestByte != -1){
-            fileRef = fopen( fileName, "r");
-            if ( fileRef == NULL)
-                exit(EXIT_FAILURE);
-            printf("File: %s \n",fileName);
-            int allBytesFreq[256];
-            for(int i=0;i<256;++i){
-                allBytesFreq[i]=0;
-            }
-            int maxFreq = -1;
-            //int*rightFile = (int*)malloc(sizeof(int) * paramOptionsSize);
-            //char* currByte = (char*)malloc(1*sizeof(char));
-            int currByte = getc(fileRef);
-            while(currByte != EOF){
-                allBytesFreq[currByte]++;
-                if(maxFreq<allBytesFreq[currByte]){
-                    maxFreq = allBytesFreq[currByte];
-                }
-                currByte = getc(fileRef);
-            }
-            if(allBytesFreq[requestByte]==maxFreq){
-                rightFile[i]=1;    
-            }
-            fclose(fileRef);
-        }else{
-            fprintf(stderr,"Invalid argument (%s)\n",(char *)paramOptions[i].flag);
-            if(rightFile) free(rightFile);
-            errno = EINVAL;
+    FILE *fp;
+    for (size_t i = 0; i < in_opts_len; i++) {
+        int decimal = convertToDecimal((char *)in_opts[i].flag);
+        char buffer[20];
+        sprintf(buffer, "%d", decimal);
+        char* target = malloc(strlen(buffer) + 1);
+        strcpy(target, buffer);
+        if (getenv("LAB1DEBUG")) fprintf(stderr, "The target in decimal notation: %s\n", target);
+        
+        // Открываем файл для чтения
+        fp = fopen(fname, "rb");
+        if (fp == NULL) {
+            fprintf(stderr, "Error opening file %s: %s\n", fname, strerror(errno));
+            return -1;
+        }
+        // Получаем размер файла
+        fseek(fp, 0, SEEK_END);
+        long fsize = ftell(fp);
+        rewind(fp);
+        
+        // Выделяем память для хранения содержимого файла
+        char *content = malloc(fsize + 1);
+        if (content == NULL) {
+            fprintf(stderr, "Error allocating memory: %s\n", strerror(errno));
+            fclose(fp);
             return -1;
         }
 
+        // Читаем содержимое файла
+        if (fread(content, fsize, 1, fp) != 1) {
+            fprintf(stderr, "Error reading file %s: %s\n", fname, strerror(errno));
+            free(content);
+            fclose(fp);
+            return -1;
+        }
+
+        // Добавляем завершающий нулевой символ
+        content[fsize] = '\0';
+
+        // Ищем последовательность байтов в содержимом файла
+        char *result = strstr(content, target);
+        if (result != NULL) {
+            // Вычисляем позицию, где найдена последовательность
+            long pos = result - content;
+            printf("File %s contains the target sequence of bytes at position %ld\n", fname, pos);
+            // Освобождаем выделенную память и закрываем файл
+            free(content);
+            fclose(fp);
+            return 0;
+        }
+        else {
+            if (getenv("LAB1DEBUG")) printf("debug: File %s does not contain the target sequence of bytes\n", fname);
+            // Освобождаем выделенную память и закрываем файл
+            free(content);
+            fclose(fp);
+            return 1;
+        }
     }
-
-
-    int res = rightFile[0];
-    for (size_t i = 1; i < paramOptionsSize; i++){
-        res = res & rightFile[i];
-    }
-    if(rightFile) free(rightFile);
-    if (res == 1)
-        return 0;
-    else if (res == 0)
-        return 1;
-    else
-        return -1;
-    return 0;
-
 }
