@@ -41,7 +41,8 @@ int convertToDecimal(const char* number) {
         base = 16;
         i = 2;
     } else {
-        return (char*) number;
+        base = 10;
+        i = 0;
     }
     
     int len = strlen(number);
@@ -56,8 +57,7 @@ int convertToDecimal(const char* number) {
         } else if (digit >= 'a' && digit <= 'f') {
             value = 10 + (digit - 'a');
         } else {
-            char* error = "Invalid number format. Non-numeric digit found.";
-            return error;
+            return -1;
         }
 
         decimal += value * pow(base, len - i - 1);
@@ -76,11 +76,15 @@ int plugin_process_file(const char *fname, struct option in_opts[], size_t in_op
     FILE *fp;
     for (size_t i = 0; i < in_opts_len; i++) {
         int decimal = convertToDecimal((char *)in_opts[i].flag);
+        if (decimal == -1) {
+            fprintf(stderr, "Invalid number format. Non-numeric digit found.\n");
+            return -1;
+        }
         char buffer[20];
         sprintf(buffer, "%d", decimal);
         char* target = malloc(strlen(buffer) + 1);
         strcpy(target, buffer);
-        if (getenv("LAB1DEBUG")) fprintf(stderr, "The target in decimal notation: %s\n", target);
+        if (getenv("LAB1DEBUG")) fprintf(stderr, "debug: The target in decimal notation: %s\n", target);
         
         // Открываем файл для чтения
         fp = fopen(fname, "rb");
@@ -131,4 +135,5 @@ int plugin_process_file(const char *fname, struct option in_opts[], size_t in_op
             return 1;
         }
     }
+    return 0;
 }

@@ -13,6 +13,7 @@ void print_help(int, const char*);
 char* convertToDecimal(char*);
 
 typedef int (*TProcess)(int, char*, char*);
+typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opts_len);
 
 int main(int argc, char *argv[]) {
     int debug = debug_mode();
@@ -22,24 +23,19 @@ int main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "-v") == 0) {
-            print_version(debug);
-            if (debug) fprintf(stderr, "debug: End debugging.\n");
-            exit(EXIT_SUCCESS);
-        }
-        else if (strcmp(argv[i], "-h") == 0) {
-            print_help(debug, argv[0]);
-        }
+        if (strcmp(argv[i], "-v") == 0) print_version(debug);
+        if (strcmp(argv[i], "-h") == 0) print_help(debug, argv[0]);
     }
     
     // Загрузка разделяемой библиотеки
-    void *handle = dlopen("libaasN32511.so", RTLD_LAZY);
+    char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
+    void *handle = dlopen(pathToLib, RTLD_LAZY);
     if (handle == NULL) {
         fprintf(stderr, "Не удалось загрузить библиотеку: %s\n", dlerror());
         return EXIT_FAILURE;
     }
     // Загрузка функции из библиотеки
-    TProcess plugin_process_file = (TProcess)dlsym(handle, "plugin_process_file");
+    prFunc_t plugin_process_file = (prFunc_t)dlsym(handle, "plugin_process_file");
     if (plugin_process_file == NULL) {
         fprintf(stderr, "Не удалось найти символ: %s\n", dlerror());
         return EXIT_FAILURE;
@@ -80,10 +76,20 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
                 break;
             case FTS_F:         // Простой файл
-                count += plugin_process_file(debug, argv[1], argv[2]);
+                //struct option *long_opts;
+                struct option opt;// = long_opts[loptInd[i]];
+                char* arg = argv[2];
+                if (arg) {
+                    opt.has_arg = 1;
+                    opt.flag = (void*)arg;
+                }
+                else {
+                    opt.has_arg = 0;
+                }
+                count += plugin_process_file(ent->fts_name, &opt, 1);
                 if (count > 0) {
                     if (debug) fprintf(stderr, "debug: Found %d files right now\n", count);
-                };
+                }
                 break;
             case FTS_NS:        // Файл, для которого нет доступной информации stat(2). Содержимое поля Fa fts_statp не определено. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
@@ -105,11 +111,12 @@ int main(int argc, char *argv[]) {
 
 void print_version(int debug) {
     if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
+    const char *Programm = "Lab №1.2 - \"Using Dynamic Libraries\"";
     char *Version = "1.0";
     const char *Autor = "Sinuta Anastasiya Anatolevna";
     const char *Group = "N32511";
     const int Variant = 5;
-    printf("Version: %s\nAutor: %s\nGroup: %s\nVariant: %d\n", Version, Autor, Group, Variant);
+    printf("Progamm: %s\nVersion: %s\nAutor: %s\nGroup: %s\nVariant: %d\n", Programm, Version, Autor, Group, Variant);
     if (debug) fprintf(stderr, "debug: End debugging.\n");
     exit(EXIT_SUCCESS);
 }
@@ -131,9 +138,9 @@ void print_help(int debug, const char* name) {
         printf("%s", options[i]);
     }
     printf("\nDirectory:\n");
-    printf("\tSpecify the byte sequences to search. The target argument is in the format of an encoded string UTF-8.\n");
-    printf("\nTarget:\n");
     printf("\tSpecify the path to the directory, starting from the directory \'/home\', from which you want to start the search.\n");
+    printf("\nTarget:\n");
+    printf("\tThe value of the sequence is given by a string containing a number entry,\n\teither in binary (0b...), or in decimal or hexadecimal (0x...) systems.\n\tThe length of the bit sequence can be arbitrary.\n");
     printf("\nThis program built for x86_64-pc-linux-gnu\n");
     printf("Report bugs to <336972@niuitmo.ru>\n");
     if (debug) fprintf(stderr, "debug: End debugging.\n");
