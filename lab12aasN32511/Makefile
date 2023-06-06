@@ -8,8 +8,14 @@ all: $(TARGETS)
 clean:
 	rm -rf *.o $(TARGETS)
 
-lab1aasN32511: lab1aasN32511.c LAB1DEBUG.c plugin_api.h
-	gcc $(CFLAGS) -g -o lab1aasN32511 lab1aasN32511.c LAB1DEBUG.c -ldl
+lab1aasN32511: lab1aasN32511.c LAB1DEBUG.c change_target.c plugin_api.h
+	gcc $(CFLAGS) -g -o lab1aasN32511 lab1aasN32511.c LAB1DEBUG.c change_target.c -ldl -lm
 
-libaasN32511.so: libaasN32511.c plugin_api.h
-	gcc $(CFLAGS) -g -shared -fPIC -o libaasN32511.so libaasN32511.c -ldl -lm
+libaasN32511.so: libaasN32511.c LAB1DEBUG.c plugin_api.h
+	gcc $(CFLAGS) -g -shared -fPIC -o libaasN32511.so libaasN32511.c LAB1DEBUG.c -ldl
+
+do:
+	./lab1aasN32511 /home/anastasiya/Desktop/tests 0b110110100001
+
+dodebug:
+	LAB1DEBUG=1 ./lab1aasN32511 /home/anastasiya/Desktop/tests 0b110110100001

@@ -17,6 +17,12 @@ typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opt
 
 int main(int argc, char *argv[]) {
     int debug = debug_mode();
+    if (debug==1) {
+        fprintf(stderr, "debug: Debug mode enabled.\n");
+    }
+    else {
+        fprintf(stderr, "debug: Debug mode not enabled.\n");
+    }
     if (argc < 2) {
         fprintf(stderr, "Using: %s <dir> <target>\n", argv[0]);
         return EXIT_FAILURE;
@@ -27,6 +33,8 @@ int main(int argc, char *argv[]) {
         if (strcmp(argv[i], "-h") == 0) print_help(debug, argv[0]);
     }
     
+    char* target = convertToDecimal(argv[2]);
+
     // Загрузка разделяемой библиотеки
     char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
     void *handle = dlopen(pathToLib, RTLD_LAZY);
@@ -76,9 +84,10 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
                 break;
             case FTS_F:         // Простой файл
+                if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);
                 //struct option *long_opts;
                 struct option opt;// = long_opts[loptInd[i]];
-                char* arg = argv[2];
+                char* arg = target;
                 if (arg) {
                     opt.has_arg = 1;
                     opt.flag = (void*)arg;
@@ -86,9 +95,11 @@ int main(int argc, char *argv[]) {
                 else {
                     opt.has_arg = 0;
                 }
-                count += plugin_process_file(ent->fts_name, &opt, 1);
-                if (count > 0) {
-                    if (debug) fprintf(stderr, "debug: Found %d files right now\n", count);
+                if (!plugin_process_file(ent->fts_path, &opt, 1)) {
+                    printf("File %s contains the target sequence of bytes\n", ent->fts_name);
+                }
+                else {
+                    if (debug) printf("debug: File %s does not contain the target sequence of bytes\n", ent->fts_name);
                 }
                 break;
             case FTS_NS:        // Файл, для которого нет доступной информации stat(2). Содержимое поля Fa fts_statp не определено. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку

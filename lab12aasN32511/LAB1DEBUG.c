@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEBUG_BUFSIZE 80
+#define DEBUG_BUFSIZE 100
 
 int debug_mode() {
     char debug_var[DEBUG_BUFSIZE];
@@ -15,14 +15,7 @@ int debug_mode() {
             exit(EXIT_FAILURE);
         }
 
-        if (strcmp(debug_var, "1") == 0) {
-            debug = 1;
-            fprintf(stderr, "debug: Debug mode enabled.\n");
-        }
-        
-        else {
-            fprintf(stderr, "debug: Debug mode not enabled.\n");
-        }
+        if (strcmp(debug_var, "1") == 0) debug = 1;
     }
     return debug;
 }
