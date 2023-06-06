@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <dlfcn.h>
 #include <fts.h>
+
 #include "plugin_api.h"
 
 int debug_mode();
@@ -12,7 +13,6 @@ void print_version(int);
 void print_help(int, const char*);
 char* convertToDecimal(char*);
 
-typedef int (*TProcess)(int, char*, char*);
 typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opts_len);
 
 int main(int argc, char *argv[]) {
@@ -28,15 +28,98 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
+    char* target_not_convert = argv[argc - 2];
+    int O_mode = 0;
+    int N_mode = 0;
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "-v") == 0) print_version(debug);
         if (strcmp(argv[i], "-h") == 0) print_help(debug, argv[0]);
+        if (strcmp(argv[i], "-O") == 0) O_mode = 1;
+        if (strcmp(argv[i], "-N") == 0) N_mode = 1;
+        if (strcmp(argv[i], "-P") == 0) {
+            if (debug) fprintf(stderr, "debug: \"-P\" option.\n");
+            if (i == argc-1) {
+                fprintf(stderr, "error: Cannot found path to plugin\n");
+                exit(EXIT_FAILURE);
+            }
+            else {
+                // Name of the lib.
+                char *lib_name = strdup(argv[i+1]);
+                
+                struct plugin_info pi = {0};
+                
+                void *dl = dlopen(argv[i+1], RTLD_LAZY);
+                if (!dl) {
+                    fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
+                    return EXIT_FAILURE;
+                }
+                
+                // Check for plugin_get_info() func
+                void *func = dlsym(dl, "plugin_get_info");
+                if (!func) {
+                    fprintf(stderr, "ERROR: dlsym() failed: %s\n", dlerror());
+                    return EXIT_FAILURE;
+                }
+                
+                typedef int (*pgi_func_t)(struct plugin_info*);
+                pgi_func_t pgi_func = (pgi_func_t)func;            
+
+                int ret = pgi_func(&pi);
+                if (ret < 0) {        
+                    fprintf(stderr, "ERROR: plugin_get_info() failed\n");
+                    return EXIT_FAILURE;
+                }
+
+                // Plugin info       
+                fprintf(stdout, "Plugin purpose:\t\t%s\n", pi.plugin_purpose);
+                fprintf(stdout, "Plugin author:\t\t%s\n", pi.plugin_author);
+                fprintf(stdout, "Supported options: ");
+                if (pi.sup_opts_len > 0) {
+                    fprintf(stdout, "\n");
+                    for (size_t i = 0; i < pi.sup_opts_len; i++) {
+                        fprintf(stdout, "\t--%s\t\t%s\n", pi.sup_opts[i].opt.name, pi.sup_opts[i].opt_descr);
+                    }
+                }
+                else {
+                    fprintf(stdout, "none (!?)\n");
+                }
+                fprintf(stdout, "\n");
+
+                // If library supports no options then we have to stop
+                if (pi.sup_opts_len == 0) {
+                    fprintf(stderr, "ERROR: library supports no options! How so?\n");
+                    return EXIT_FAILURE;
+                }
+
+                // Get pointer to plugin_process_file()
+                func = dlsym(dl, "plugin_process_file");
+                if (!func) {
+                    fprintf(stderr, "ERROR: no plugin_process_file() function found\n");
+                    return EXIT_FAILURE;
+                }
+                
+                typedef int (*ppf_func_t)(const char*, struct option*, size_t);
+                ppf_func_t ppf_func = (ppf_func_t)func;  
+            }
+        }
+        /*if (strcmp(argv[i], "--bit-seq") == 0) {
+            if (debug) fprintf(stderr, "debug: \"-bit-seq\" option.\n");
+            if (i == argc-1) {
+                fprintf(stderr, "Не найдено значение искомой последовательности битов\n");
+                exit(EXIT_FAILURE);
+            }
+            else {
+                target_not_convert = argv[i+1];
+            }
+        }*/
+        
     }
-    
-    char* target = convertToDecimal(argv[2]);
+    fprintf(stderr, "lib: %s\n", pathToLib);
+    fprintf(stderr, "target: %s\n", target_not_convert);
+    char* target = convertToDecimal(target_not_convert);
 
     // Загрузка разделяемой библиотеки
-    char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
     void *handle = dlopen(pathToLib, RTLD_LAZY);
     if (handle == NULL) {
         fprintf(stderr, "Не удалось загрузить библиотеку: %s\n", dlerror());
@@ -48,7 +131,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Не удалось найти символ: %s\n", dlerror());
         return EXIT_FAILURE;
     }
-    const char* dir = (char*)argv[1];
+    const char* dir = strdup(argv[argc - 1]);
     char *paths[2] = {(char*)dir, NULL};
     FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
     if (!fts_h) {
@@ -134,7 +217,7 @@ void print_version(int debug) {
 
 void print_help(int debug, const char* name) {
     if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
-    printf("Usage: %s [options] [directory] [target]...\n", name);
+    printf("Usage: %s [options] [target] [directory]...\n", name);
     printf("\nOptions:\n");
     const char* options[] = {
         "\t-P <dir> Directory with plugins..\n",
@@ -148,10 +231,10 @@ void print_help(int debug, const char* name) {
     for (int i = 0; i < count; i++) {
         printf("%s", options[i]);
     }
-    printf("\nDirectory:\n");
-    printf("\tSpecify the path to the directory, starting from the directory \'/home\', from which you want to start the search.\n");
     printf("\nTarget:\n");
     printf("\tThe value of the sequence is given by a string containing a number entry,\n\teither in binary (0b...), or in decimal or hexadecimal (0x...) systems.\n\tThe length of the bit sequence can be arbitrary.\n");
+    printf("\nDirectory:\n");
+    printf("\tSpecify the path to the directory, starting from the directory \'/home\', from which you want to start the search.\n");
     printf("\nThis program built for x86_64-pc-linux-gnu\n");
     printf("Report bugs to <336972@niuitmo.ru>\n");
     if (debug) fprintf(stderr, "debug: End debugging.\n");

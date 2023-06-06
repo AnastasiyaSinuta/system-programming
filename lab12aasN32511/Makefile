@@ -15,7 +15,4 @@ libaasN32511.so: libaasN32511.c LAB1DEBUG.c plugin_api.h
 	gcc $(CFLAGS) -g -shared -fPIC -o libaasN32511.so libaasN32511.c LAB1DEBUG.c -ldl
 
 do:
-	./lab1aasN32511 /home/anastasiya/Desktop/tests 0b110110100001
-
-dodebug:
-	LAB1DEBUG=1 ./lab1aasN32511 /home/anastasiya/Desktop/tests 0b110110100001
+	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 0b110110100001 /home/anastasiya/Desktop/tests
