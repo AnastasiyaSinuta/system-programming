@@ -7,6 +7,7 @@
 
 #include "plugin_api.h"
 
+
 static char *g_lib_name = "libaasN32511.so";
 
 static char *g_plugin_purpose = "Chek if the file contains a given sequence of bits";

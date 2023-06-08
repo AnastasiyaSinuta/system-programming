@@ -1,109 +1,180 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h> 
 #include <getopt.h>
 #include <dlfcn.h>
+#include <unistd.h>
 #include <fts.h>
 
 #include "plugin_api.h"
 
-/*int plugWork(char*, char*);
-struct env_options
-{
-    // NEED_MAKE
-    char* pathToPlugin;
-    char* option; // нужно обрезать от названия опции --
-    char* target; // нужно поимать есть ли у опции аргумент
-};*/
-
-//typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opts_len);
-
 int main(int argc, char *argv[]) {
+    int O_mode = 0;
+    int N_mode = 0;
+    char* dirWithPlugins = get_current_dir_name();
+    for (int i = 0; i < argc; i++) {
+        if (!strcmp(argv[i], "-v")) {
+            fprintf(stderr, "Lab №1.2 - \"Using Dynamic Libraries\"\n");
+            fprintf(stderr, "Version: 1.0\n");
+            fprintf(stderr, "Autor: Sinuta Anastasiya Anatolevna\n");
+            fprintf(stderr, "Group: N32511\n");
+            fprintf(stderr, "Variant: 5\n");
+            exit(EXIT_SUCCESS);
+        }
+        if (!strcmp(argv[i], "-h")) {
+            fprintf(stderr, "Usage: %s [options] [directory]...\n", argv[0]);
+            fprintf(stderr, "Options:\n");
+            fprintf(stderr, "-P <dir> Directory with plugins..\n"),
+            fprintf(stderr, "-A Combining Plugin Options with an AND Operation (valid by default).\n");
+            fprintf(stderr, "-O Combining plugin options using the OR operation.\n");
+            fprintf(stderr, "-N Invert search condition (after merging options plugins with -A or -O).\n");
+            fprintf(stderr, "-v Displaying the version of the program and information about the program (full name performer, group number, laboratory version number).\n");
+            fprintf(stderr, "-h Display help for options.\n");
+            exit(EXIT_SUCCESS);
+        }
+        if (!strcmp(argv[i], "-O")) O_mode = 1;
+        if (!strcmp(argv[i], "-N")) N_mode = 1;
+        if (!strcmp(argv[i], "-P")) {
+            if (i == argc-1) {
+                fprintf(stderr, "ERROR: Option -P needs an argument <dir>\n");
+                exit(EXIT_FAILURE);
+            }
+            dirWithPlugins = strdup(argv[i+1]);
+        }
+    }
+
+    // Включение модуля отладки
     char* debug = getenv("LAB1DEBUG");
     if (debug) fprintf(stderr, "debug: Debug mode enabled.\n");
     if (argc < 2) {
         fprintf(stderr, "Using: %s <dir> <target>\n", argv[0]);
         return EXIT_FAILURE;
     }
-    //char* dirWithPlugins = get_current_dir_name();
-    char* dirWithPlugins = "/home/anastasiya/Desktop/system-programming/lab12aasN32511";
-    //char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
-    //char* target_not_convert = strdup(argv[argc - 2]);
-    //char* directory = strdup(argv[argc-1]);
-    //struct env_options *all_opt_from_env;
-    int O_mode = 0;
-    int N_mode = 0;
-    for (int i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "-v")) {
-            if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
-            fprintf(stderr, "Progamm:\tLab №1.2 - \"Using Dynamic Libraries\"\n");
-            fprintf(stderr, "Version:\t1.0\n");
-            fprintf(stderr, "Autor:\tSinuta Anastasiya Anatolevna\n");
-            fprintf(stderr, "Group:\tN32511\n");
-            fprintf(stderr, "Variant:\t5\n");
-            if (debug) fprintf(stderr, "debug: End debugging.\n");
-            exit(EXIT_SUCCESS);
-        }
-        if (!strcmp(argv[i], "-h")) {
-            if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
-            fprintf(stderr, "Usage: %s [options] [directory]...\n\n", argv[0]);
-            fprintf(stderr, "Options:\n");
-            fprintf(stderr, "\t-P <dir> Directory with plugins..\n"),
-            fprintf(stderr, "\t-A Combining Plugin Options with an AND Operation (valid by default).\n");
-            fprintf(stderr, "\t-O Combining plugin options using the OR operation.\n");
-            fprintf(stderr, "\t-N Invert search condition (after merging options plugins with -A or -O).\n");
-            fprintf(stderr, "\t-v Displaying the version of the program and information about the program (full name performer, group number, laboratory version number).\n");
-            fprintf(stderr, "\t-h Display help for options.\n");
-            printf("\nTarget:\n");
-            printf("\tThe value of the sequence is given by a string containing a number entry,\n\teither in binary (0b...), or in decimal or hexadecimal (0x...) systems.\n\tThe length of the bit sequence can be arbitrary.\n");
-            printf("\nDirectory:\n");
-            printf("\tSpecify the path to the directory, starting from the directory \'/home\', from which you want to start the search.\n");
-            printf("\nThis program built for x86_64-pc-linux-gnu\n");
-            printf("Report bugs to <336972@niuitmo.ru>\n");
-            if (debug) fprintf(stderr, "debug: End debugging.\n");
-            exit(EXIT_SUCCESS);
-        }
-        if (!strcmp(argv[i], "-O")) O_mode = 1;
-        if (!strcmp(argv[i], "-N")) N_mode = 1;
-        if (!strcmp(argv[i], "-P")) {
-            if (debug) fprintf(stderr, "debug: \"-P\" option.\n");
-            if (i == argc-1) {
-                fprintf(stderr, "ERROR: Cannot found path to plugin\n");
+
+    // Поиск плагина
+    if (debug) fprintf(stderr, "debug: Searching plugins in directory: %s\n", dirWithPlugins);
+    FTS *ftsp;
+    FTSENT *entry;
+    
+    char *paths[] = { dirWithPlugins, NULL };
+    
+    ftsp = fts_open(paths, FTS_NOCHDIR, NULL);
+    if (ftsp == NULL) {
+        perror("fts_open");
+        exit(EXIT_FAILURE);
+    }
+
+    // Создаем массив указателей на строки для хранения путей файлов
+    char **filePaths = NULL;
+    size_t filePathsSize = 0;
+    
+    while ((entry = fts_read(ftsp)) != NULL) {
+        if (entry->fts_info & FTS_F && strcmp(entry->fts_name + entry->fts_namelen - 3, ".so") == 0) {
+            // Выделяем память для пути файла
+            char *path = strdup(entry->fts_path);
+            if (path == NULL) {
+                perror("strdup");
                 exit(EXIT_FAILURE);
             }
-            dirWithPlugins = strdup(argv[i+1]);
-            if (debug) fprintf(stderr, "debug: Searching plugins in directory: %s\n", dirWithPlugins);
+
+            // Увеличиваем размер массива и сохраняем путь файла в него
+            filePathsSize++;
+            filePaths = realloc(filePaths, filePathsSize * sizeof(char *));
+            if (filePaths == NULL) {
+                perror("realloc");
+                exit(EXIT_FAILURE);
+            }
+            filePaths[filePathsSize - 1] = path;
+            if (debug) fprintf(stderr, "debug: Found shared library: %s\n", entry->fts_name);
         }
     }
-    char *paths[2] = {(char*)dirWithPlugins, NULL};
-    FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
-    if (!fts_h) {
-        fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
-        return EXIT_FAILURE;
+    
+    if (errno) {
+        perror("fts_read");
+        exit(EXIT_FAILURE);
     }
-    while (1) {
-        errno = 0;
-        FTSENT *ent = fts_read(fts_h);
-        if (ent == NULL) {
-            if (errno != 0)
-                continue;
-            else break;
+    
+    fts_close(ftsp);
+
+    char* directory = strdup(argv[argc-1]);
+
+    for (size_t i = 0; i < filePathsSize; i++) {
+        int opts_to_pass_len = 0;
+        struct option *opts_to_pass = NULL;
+        struct option *longopts = NULL;
+
+        char *lib_name = filePaths[i];
+
+        char *file_name = directory;
+
+        struct plugin_info pi = {0};
+
+        void *dl = dlopen(lib_name, RTLD_LAZY);
+        if (!dl) {
+            fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
+            goto END;
         }
-        char* rasshirenie = strrchr(ent->fts_name, '.');
-        if (debug) fprintf(stderr, "debug: Found file \"%s\", wist rasshir %s\n", ent->fts_name, rasshirenie);
-        if (rasshirenie == ".so") {
-            fprintf(stderr, "plugin: %s\n", ent->fts_name);
+
+        // Check for plugin_get_info() func
+        void *func = dlsym(dl, "plugin_get_info");
+        if (!func) {
+            fprintf(stderr, "ERROR: dlsym() failed: %s\n", dlerror());
+            goto END;
+        }
+
+        typedef int (*pgi_func_t)(struct plugin_info*);
+        pgi_func_t pgi_func = (pgi_func_t)func;            
+
+        int ret = pgi_func(&pi);
+        if (ret < 0) {        
+            fprintf(stderr, "ERROR: plugin_get_info() failed\n");
+            goto END;
+        }
+
+        // Plugin info       
+        fprintf(stdout, "Plugin purpose:\t\t%s\n", pi.plugin_purpose);
+        fprintf(stdout, "Plugin author:\t\t%s\n", pi.plugin_author);
+        fprintf(stdout, "Supported options: ");
+        if (pi.sup_opts_len > 0) {
+            fprintf(stdout, "\n");
+            for (size_t i = 0; i < pi.sup_opts_len; i++) {
+                fprintf(stdout, "\t--%s\t\t%s\n", pi.sup_opts[i].opt.name, pi.sup_opts[i].opt_descr);
+            }
         }
         else {
-            if (debug) fprintf(stderr, "ne plugin\n");
+            fprintf(stdout, "none (!?)\n");
         }
+        fprintf(stdout, "\n");
+
+        // If library supports no options then we have to stop
+        if (pi.sup_opts_len == 0) {
+            fprintf(stderr, "ERROR: library supports no options! How so?\n");
+            goto END;
+        }
+        
+        END:
+        if (opts_to_pass) {
+            for (int i = 0; i < opts_to_pass_len; i++)
+                free( (opts_to_pass + i)->flag );
+            free(opts_to_pass);
+        }
+        if (longopts) free(longopts);
+        if (lib_name) free(lib_name);
+        if (file_name) free(file_name);
+        if (dl) dlclose(dl);
     }
-    fts_close(fts_h);
+
+    /*// Освобождаем память, выделенную для каждого пути файла 
+    for (size_t i = 0; i < filePathsSize; i++) { 
+        free(filePaths[i]); 
+    } 
+ 
+    // Освобождаем память, выделенную для массива указателей на строки 
+    free(filePaths);*/
 
     /*NEED_MAKE
-    // Найти опции, для которых путь к плагину не задан явно (через -P)
-    // countOpt++;
     // Внести их в all_opt_from_env.
 
     // NEED_MAKE

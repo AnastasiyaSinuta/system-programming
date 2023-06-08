@@ -14,8 +14,17 @@ lab1aasN32511: lab1aasN32511.c plugin_api.h
 libaasN32511.so: libaasN32511.c plugin_api.h
 	gcc $(CFLAGS) -g -shared -fPIC -o libaasN32511.so libaasN32511.c -ldl -lm
 
+vers:
+	./lab1aasN32511 -v
+
+help:
+	./lab1aasN32511 -h
+
 do:
-	LAB1DEBUG ./lab1aasN32511 --bit-seq 0b110110100001 /home/anastasiya/Desktop/tests
+	./lab1aasN32511 --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/tests
+
+do_debug:
+	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/tests
 
 plug:
-	LAB1DEBUG=1 ./lab1aasN32511 -P /home/anastasiya/Desktop/system-programming/lab1test
+	LAB1DEBUG=1 ./lab1aasN32511 -P /home/vboxuser/Desktop/system-programming/plugs --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/tests
