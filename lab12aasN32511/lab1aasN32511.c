@@ -8,114 +8,137 @@
 
 #include "plugin_api.h"
 
-int debug_mode();
-void print_version(int);
-void print_help(int, const char*);
-char* convertToDecimal(char*);
+int plugWork(char*, char*);
+struct env_options
+{
+    // NEED_MAKE
+    char* pathToPlugin;
+    char* option; // нужно обрезать от названия опции --
+    char* target; // нужно поимать есть ли у опции аргумент
+};
 
-typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opts_len);
+//typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opts_len);
 
 int main(int argc, char *argv[]) {
-    int debug = debug_mode();
-    if (debug==1) {
-        fprintf(stderr, "debug: Debug mode enabled.\n");
-    }
-    else {
-        fprintf(stderr, "debug: Debug mode not enabled.\n");
-    }
+    char* debug = getenv("LAB1DEBUG");
+    if (debug) fprintf(stderr, "debug: Debug mode enabled.\n");
     if (argc < 2) {
         fprintf(stderr, "Using: %s <dir> <target>\n", argv[0]);
         return EXIT_FAILURE;
     }
 
     char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
-    char* target_not_convert = argv[argc - 2];
+    char* target_not_convert = strdup(argv[argc - 2]);
+    char* directory = strdup(argv[argc-1]);
+    struct env_options *all_opt_from_env;
+    int countOpt = 0;
     int O_mode = 0;
     int N_mode = 0;
     for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "-v") == 0) print_version(debug);
-        if (strcmp(argv[i], "-h") == 0) print_help(debug, argv[0]);
-        if (strcmp(argv[i], "-O") == 0) O_mode = 1;
-        if (strcmp(argv[i], "-N") == 0) N_mode = 1;
-        if (strcmp(argv[i], "-P") == 0) {
+        if (!strcmp(argv[i], "-v")) {
+            if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
+            fprintf(stderr, "Progamm:\tLab №1.2 - \"Using Dynamic Libraries\"\n");
+            fprintf(stderr, "Version:\t1.0\n");
+            fprintf(stderr, "Autor:\tSinuta Anastasiya Anatolevna\n");
+            fprintf(stderr, "Group:\tN32511\n");
+            fprintf(stderr, "Variant:\t5\n");
+            if (debug) fprintf(stderr, "debug: End debugging.\n");
+            exit(EXIT_SUCCESS);
+        }
+        if (!strcmp(argv[i], "-h")) {
+            if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
+            fprintf(stderr, "Usage: %s [options] [directory]...\n\n", argv[0]);
+            fprintf(stderr, "Options:\n");
+            fprintf(stderr, "\t-P <dir> Directory with plugins..\n"),
+            fprintf(stderr, "\t-A Combining Plugin Options with an AND Operation (valid by default).\n");
+            fprintf(stderr, "\t-O Combining plugin options using the OR operation.\n");
+            fprintf(stderr, "\t-N Invert search condition (after merging options plugins with -A or -O).\n");
+            fprintf(stderr, "\t-v Displaying the version of the program and information about the program (full name performer, group number, laboratory version number).\n");
+            fprintf(stderr, "\t-h Display help for options.\n");
+            printf("\nTarget:\n");
+            printf("\tThe value of the sequence is given by a string containing a number entry,\n\teither in binary (0b...), or in decimal or hexadecimal (0x...) systems.\n\tThe length of the bit sequence can be arbitrary.\n");
+            printf("\nDirectory:\n");
+            printf("\tSpecify the path to the directory, starting from the directory \'/home\', from which you want to start the search.\n");
+            printf("\nThis program built for x86_64-pc-linux-gnu\n");
+            printf("Report bugs to <336972@niuitmo.ru>\n");
+            if (debug) fprintf(stderr, "debug: End debugging.\n");
+            exit(EXIT_SUCCESS);
+        }
+        if (!strcmp(argv[i], "-O")) O_mode = 1;
+        if (!strcmp(argv[i], "-N")) N_mode = 1;
+        if (!strcmp(argv[i], "-P")) {
             if (debug) fprintf(stderr, "debug: \"-P\" option.\n");
             if (i == argc-1) {
-                fprintf(stderr, "error: Cannot found path to plugin\n");
+                fprintf(stderr, "ERROR: Cannot found path to plugin\n");
+                exit(EXIT_FAILURE);
+            }
+            else if (i == argc-2) {
+                fprintf(stderr, "ERROR: Cannot found option for plugin\n");
                 exit(EXIT_FAILURE);
             }
             else {
                 // Name of the lib.
+                // NEED_MAKE нужно реализовать поиск .so
                 char *lib_name = strdup(argv[i+1]);
-                
-                struct plugin_info pi = {0};
-                
-                void *dl = dlopen(argv[i+1], RTLD_LAZY);
-                if (!dl) {
-                    fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
-                    return EXIT_FAILURE;
-                }
-                
-                // Check for plugin_get_info() func
-                void *func = dlsym(dl, "plugin_get_info");
-                if (!func) {
-                    fprintf(stderr, "ERROR: dlsym() failed: %s\n", dlerror());
-                    return EXIT_FAILURE;
-                }
-                
-                typedef int (*pgi_func_t)(struct plugin_info*);
-                pgi_func_t pgi_func = (pgi_func_t)func;            
-
-                int ret = pgi_func(&pi);
-                if (ret < 0) {        
-                    fprintf(stderr, "ERROR: plugin_get_info() failed\n");
-                    return EXIT_FAILURE;
-                }
-
-                // Plugin info       
-                fprintf(stdout, "Plugin purpose:\t\t%s\n", pi.plugin_purpose);
-                fprintf(stdout, "Plugin author:\t\t%s\n", pi.plugin_author);
-                fprintf(stdout, "Supported options: ");
-                if (pi.sup_opts_len > 0) {
-                    fprintf(stdout, "\n");
-                    for (size_t i = 0; i < pi.sup_opts_len; i++) {
-                        fprintf(stdout, "\t--%s\t\t%s\n", pi.sup_opts[i].opt.name, pi.sup_opts[i].opt_descr);
-                    }
-                }
-                else {
-                    fprintf(stdout, "none (!?)\n");
-                }
-                fprintf(stdout, "\n");
-
-                // If library supports no options then we have to stop
-                if (pi.sup_opts_len == 0) {
-                    fprintf(stderr, "ERROR: library supports no options! How so?\n");
-                    return EXIT_FAILURE;
-                }
-
-                // Get pointer to plugin_process_file()
-                func = dlsym(dl, "plugin_process_file");
-                if (!func) {
-                    fprintf(stderr, "ERROR: no plugin_process_file() function found\n");
-                    return EXIT_FAILURE;
-                }
-                
-                typedef int (*ppf_func_t)(const char*, struct option*, size_t);
-                ppf_func_t ppf_func = (ppf_func_t)func;  
+                all_opt_from_env[countOpt].pathToPlugin = lib_name;
+                all_opt_from_env[countOpt].option = strdup(argv[i+2]);
+                all_opt_from_env[countOpt].target = strdup(argv[i+3]);
+                countOpt++;
             }
         }
-        /*if (strcmp(argv[i], "--bit-seq") == 0) {
-            if (debug) fprintf(stderr, "debug: \"-bit-seq\" option.\n");
-            if (i == argc-1) {
-                fprintf(stderr, "Не найдено значение искомой последовательности битов\n");
-                exit(EXIT_FAILURE);
-            }
-            else {
-                target_not_convert = argv[i+1];
-            }
-        }*/
-        
     }
-    fprintf(stderr, "lib: %s\n", pathToLib);
+    /*NEED_MAKE
+    // Найти опции, для которых путь к плагину не задан явно (через -P)
+    // countOpt++;
+    // Внести их в all_opt_from_env.
+
+    // NEED_MAKE
+    // Дальнейшая логика:
+    // walk_dir по указанной директории
+    // case FTS_F: допустим filename
+    // if (N_mode=0) {
+    //     if (O_mode=0) { //опиция И
+    //         int file_podhodit = 1;
+    //         for (option : all_opt_from_env) {
+    //             if (plugWork(option, filename) == 1) { //плагин сказал что файл не подходит
+    //                 file_podhodit = 0;  //значит нам этот файл не нужен вовсе
+    //                 break;
+    //             }
+    //         }
+    //         if (file_podhodit) printf(filename);
+    //     }
+    //     else { // опция ИЛИ
+    //         for (option : all_opt_from_env) {
+    //             // если хотя бы по одному плагину подходит то выводим
+    //             if (plugWork(option, filename) == 0) { 
+    //                 printf(filename);
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // }
+    // else {
+    //     if (O_mode=0) {
+    //         int file_podhodit = 1;
+    //         for (option : all_opt_from_env) {
+    //             if (plugWork(option, filename) == 0) {
+    //                 file_podhodit = 0;
+    //                 break;
+    //             }
+    //         }
+    //         if (file_podhodit) printf(filename);
+    //     }
+    //     else {        
+    //         for (option : all_opt_from_env) {
+    //             if (plugWork(option, filename) == 1) { 
+    //                 printf(filename);
+    //                 break;
+    //             }
+    //         }
+    //     }
+    // }
+*/
+    /*fprintf(stderr, "lib: %s\n", pathToLib);
     fprintf(stderr, "target: %s\n", target_not_convert);
     char* target = convertToDecimal(target_not_convert);
 
@@ -199,44 +222,7 @@ int main(int argc, char *argv[]) {
     }   
     fts_close(fts_h);
     if (debug) fprintf(stderr, "debug: End debugging.\n");
-    dlclose(handle); // Закрытие библиотеки
+    dlclose(handle); // Закрытие библиотеки*/
+    
     return EXIT_SUCCESS;
-}
-
-void print_version(int debug) {
-    if (debug) fprintf(stderr, "debug: \"Version\" option.\n");
-    const char *Programm = "Lab №1.2 - \"Using Dynamic Libraries\"";
-    char *Version = "1.0";
-    const char *Autor = "Sinuta Anastasiya Anatolevna";
-    const char *Group = "N32511";
-    const int Variant = 5;
-    printf("Progamm: %s\nVersion: %s\nAutor: %s\nGroup: %s\nVariant: %d\n", Programm, Version, Autor, Group, Variant);
-    if (debug) fprintf(stderr, "debug: End debugging.\n");
-    exit(EXIT_SUCCESS);
-}
-
-void print_help(int debug, const char* name) {
-    if (debug) fprintf(stderr, "debug: \"Help\" option.\n");
-    printf("Usage: %s [options] [target] [directory]...\n", name);
-    printf("\nOptions:\n");
-    const char* options[] = {
-        "\t-P <dir> Directory with plugins..\n",
-        "\t-A Combining Plugin Options with an AND Operation (valid by default).\n",
-        "\t-O Combining plugin options using the OR operation.\n",
-        "\t-N Invert search condition (after merging options plugins with -A or -O).\n",
-        "\t-v Displaying the version of the program and information about the program (full name performer, group number, laboratory version number).\n",
-        "\t-h Display help for options.\n"
-    };
-    int count = sizeof(options)/sizeof(options[0]);
-    for (int i = 0; i < count; i++) {
-        printf("%s", options[i]);
-    }
-    printf("\nTarget:\n");
-    printf("\tThe value of the sequence is given by a string containing a number entry,\n\teither in binary (0b...), or in decimal or hexadecimal (0x...) systems.\n\tThe length of the bit sequence can be arbitrary.\n");
-    printf("\nDirectory:\n");
-    printf("\tSpecify the path to the directory, starting from the directory \'/home\', from which you want to start the search.\n");
-    printf("\nThis program built for x86_64-pc-linux-gnu\n");
-    printf("Report bugs to <336972@niuitmo.ru>\n");
-    if (debug) fprintf(stderr, "debug: End debugging.\n");
-    exit(EXIT_SUCCESS);
 }

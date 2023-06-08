@@ -1,12 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <fts.h>
 #include <errno.h>
 
 #include "plugin_api.h"
 
-static struct plugin_option arr[] = {
+static char *g_lib_name = "libaasN32511.so";
+
+static char *g_plugin_purpose = "Chek if the file contains a given sequence of bits";
+
+static char *g_plugin_author = "Sinuta Anastasiya";
+
+static struct plugin_option g_po_arr[] = {
     {
         {"bit-seq",
            1,
@@ -16,28 +23,52 @@ static struct plugin_option arr[] = {
     }
 };
 
+static int g_po_arr_len = sizeof(g_po_arr)/sizeof(g_po_arr[0]);
+
+//
+//  Private functions
+//
+char* convertToDecimal(char*);
+
+//
+//  API functions
+//
 int plugin_get_info(struct plugin_info* ppi) {
     if (!ppi) {
         fprintf(stderr, "ERROR: invalid argument\n");
         return -1;
     }
-    ppi->plugin_purpose = "Search for files containing a given sequence of bits.";
-    ppi->plugin_author = "Sinuta Anastasiya";
-    ppi->sup_opts_len = sizeof(arr)/sizeof(arr[0]);
-    ppi->sup_opts = arr;
+    ppi->plugin_purpose = g_plugin_purpose;
+    ppi->plugin_author = g_plugin_author;
+    ppi->sup_opts_len = g_po_arr_len;
+    ppi->sup_opts = g_po_arr;
 
     return 0;
 }
-int debug_mode();
-int plugin_process_file(const char *fname, struct option in_opts[], size_t in_opts_len) {
-    int debug = debug_mode();
-    if (! fname || !in_opts || in_opts_len <= 0){
+
+int plugin_process_file(const char *fname,
+        struct option in_opts[],
+        size_t in_opts_len) {
+    
+    char *debug = getenv("LAB1DEBUG");
+
+    if (!fname || !in_opts || !in_opts_len) {
         errno = EINVAL;
         return -1;
     }
+
+    if (debug) {
+        for (size_t i = 0; i < in_opts_len; i++) {
+            fprintf(stderr, "debug: %s: Got option '%s' with arg '%s'\n",
+                g_lib_name, in_opts[i].name, (char*)in_opts[i].flag);
+        }
+    }
+
     FILE *fp;
     for (size_t i = 0; i < in_opts_len; i++) {
-        char* target = (char *)in_opts[i].flag;
+        char* target_not_convert = (char *)in_opts[i].flag;
+        char* target = convertToDecimal(target_not_convert);
+        
         // Открываем файл для чтения
         fp = fopen(fname, "rb");
         if (fp == NULL) {
@@ -87,4 +118,50 @@ int plugin_process_file(const char *fname, struct option in_opts[], size_t in_op
         }
     }
     return 0;
+}
+
+char* convertToDecimal(char* number) {
+    int base = 0;
+    int i = 0;
+    int decimal = 0;
+    
+    if (number[0] == '0' && number[1] == 'b') {
+        base = 2;
+        i = 2;
+    } else if (number[0] == '0' && (number[1] == 'x' || number[1] == 'X')) {
+        base = 16;
+        i = 2;
+    } else {
+        fprintf(stderr, "The target in decimal notation: %s\n", (char*)number);
+        return (char*)number;
+    }
+    
+    int len = strlen(number);
+    for (; i < len; i++) {
+        char digit = number[i];
+        int value;
+        
+        if (digit >= '0' && digit <= '9') {
+            value = digit - '0';
+        } else if (digit >= 'A' && digit <= 'F') {
+            value = 10 + (digit - 'A');
+        } else if (digit >= 'a' && digit <= 'f') {
+            value = 10 + (digit - 'a');
+        } else {
+            fprintf(stderr, "Invalid number format. Non-numeric digit found.\n");
+            exit(EXIT_FAILURE);
+        }
+
+        decimal += value * pow(base, len - i - 1);
+    }
+    int len1 = 0;
+    int tmp = decimal;
+    while(tmp) {
+        len1++;
+        tmp /= 10;
+    }
+    char* decimal_str = (char*)malloc((len1 + 1) * sizeof(char));
+    sprintf(decimal_str, "%d", decimal);
+    fprintf(stderr, "The target in decimal notation: %s\n", decimal_str);
+    return decimal_str;
 }
