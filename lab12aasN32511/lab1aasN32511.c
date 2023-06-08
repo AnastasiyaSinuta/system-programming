@@ -8,14 +8,14 @@
 
 #include "plugin_api.h"
 
-int plugWork(char*, char*);
+/*int plugWork(char*, char*);
 struct env_options
 {
     // NEED_MAKE
     char* pathToPlugin;
     char* option; // нужно обрезать от названия опции --
     char* target; // нужно поимать есть ли у опции аргумент
-};
+};*/
 
 //typedef int (*prFunc_t)(const char* name, struct option in_opts[], size_t in_opts_len);
 
@@ -26,12 +26,12 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Using: %s <dir> <target>\n", argv[0]);
         return EXIT_FAILURE;
     }
-
-    char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
-    char* target_not_convert = strdup(argv[argc - 2]);
-    char* directory = strdup(argv[argc-1]);
-    struct env_options *all_opt_from_env;
-    int countOpt = 0;
+    //char* dirWithPlugins = get_current_dir_name();
+    char* dirWithPlugins = "/home/anastasiya/Desktop/system-programming/lab12aasN32511";
+    //char* pathToLib = "/home/anastasiya/Desktop/system-programming/lab12aasN32511/libaasN32511.so";
+    //char* target_not_convert = strdup(argv[argc - 2]);
+    //char* directory = strdup(argv[argc-1]);
+    //struct env_options *all_opt_from_env;
     int O_mode = 0;
     int N_mode = 0;
     for (int i = 0; i < argc; i++) {
@@ -72,21 +72,35 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "ERROR: Cannot found path to plugin\n");
                 exit(EXIT_FAILURE);
             }
-            else if (i == argc-2) {
-                fprintf(stderr, "ERROR: Cannot found option for plugin\n");
-                exit(EXIT_FAILURE);
-            }
-            else {
-                // Name of the lib.
-                // NEED_MAKE нужно реализовать поиск .so
-                char *lib_name = strdup(argv[i+1]);
-                all_opt_from_env[countOpt].pathToPlugin = lib_name;
-                all_opt_from_env[countOpt].option = strdup(argv[i+2]);
-                all_opt_from_env[countOpt].target = strdup(argv[i+3]);
-                countOpt++;
-            }
+            dirWithPlugins = strdup(argv[i+1]);
+            if (debug) fprintf(stderr, "debug: Searching plugins in directory: %s\n", dirWithPlugins);
         }
     }
+    char *paths[2] = {(char*)dirWithPlugins, NULL};
+    FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+    if (!fts_h) {
+        fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    while (1) {
+        errno = 0;
+        FTSENT *ent = fts_read(fts_h);
+        if (ent == NULL) {
+            if (errno != 0)
+                continue;
+            else break;
+        }
+        char* rasshirenie = strrchr(ent->fts_name, '.');
+        if (debug) fprintf(stderr, "debug: Found file \"%s\", wist rasshir %s\n", ent->fts_name, rasshirenie);
+        if (rasshirenie == ".so") {
+            fprintf(stderr, "plugin: %s\n", ent->fts_name);
+        }
+        else {
+            if (debug) fprintf(stderr, "ne plugin\n");
+        }
+    }
+    fts_close(fts_h);
+
     /*NEED_MAKE
     // Найти опции, для которых путь к плагину не задан явно (через -P)
     // countOpt++;
