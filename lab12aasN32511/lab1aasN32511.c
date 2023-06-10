@@ -180,15 +180,14 @@ int main(int argc, char *argv[]) {
             opt_count++;
         }
     }
-    
+
     int O_mode = 0;
     int N_mode = 0;
     int ret;
+    int opt_ind = 0;
     while (1) {
-        int opt_ind = 0;
-        ret = getopt_long(argc, argv, "P:AON", long_opts, &opt_ind);
+        if (ret = getopt_long(argc, argv, "P:AON", long_opts, &opt_ind) == -1) break;
         switch (ret) {
-        case -1: break;
         case 'P': break; 
         case 'A': break;
         case 'O':
@@ -196,87 +195,21 @@ int main(int argc, char *argv[]) {
             break;
         case 'N':
             N_mode = 1;
+            break;
         case ':': exit(EXIT_FAILURE);
         case '?': exit(EXIT_FAILURE);
         default:
-            
+            // занести в opt_env
         }
     }
-    //char* directory = strdup(argv[argc-1]);
-
-    /*NEED_MAKE
-    // Внести их в all_opt_from_env.
-
-    // NEED_MAKE
-    // Дальнейшая логика:
-    // walk_dir по указанной директории
-    // case FTS_F: допустим filename
-    // if (N_mode=0) {
-    //     if (O_mode=0) { //опиция И
-    //         int file_podhodit = 1;
-    //         for (option : all_opt_from_env) {
-    //             if (plugWork(option, filename) == 1) { //плагин сказал что файл не подходит
-    //                 file_podhodit = 0;  //значит нам этот файл не нужен вовсе
-    //                 break;
-    //             }
-    //         }
-    //         if (file_podhodit) printf(filename);
-    //     }
-    //     else { // опция ИЛИ
-    //         for (option : all_opt_from_env) {
-    //             // если хотя бы по одному плагину подходит то выводим
-    //             if (plugWork(option, filename) == 0) { 
-    //                 printf(filename);
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
-    // else {
-    //     if (O_mode=0) {
-    //         int file_podhodit = 1;
-    //         for (option : all_opt_from_env) {
-    //             if (plugWork(option, filename) == 0) {
-    //                 file_podhodit = 0;
-    //                 break;
-    //             }
-    //         }
-    //         if (file_podhodit) printf(filename);
-    //     }
-    //     else {        
-    //         for (option : all_opt_from_env) {
-    //             if (plugWork(option, filename) == 1) { 
-    //                 printf(filename);
-    //                 break;
-    //             }
-    //         }
-    //     }
-    // }
-*/
-    /*fprintf(stderr, "lib: %s\n", pathToLib);
-    fprintf(stderr, "target: %s\n", target_not_convert);
-    char* target = convertToDecimal(target_not_convert);
-
-    // Загрузка разделяемой библиотеки
-    void *handle = dlopen(pathToLib, RTLD_LAZY);
-    if (handle == NULL) {
-        fprintf(stderr, "Не удалось загрузить библиотеку: %s\n", dlerror());
-        return EXIT_FAILURE;
-    }
-    // Загрузка функции из библиотеки
-    prFunc_t plugin_process_file = (prFunc_t)dlsym(handle, "plugin_process_file");
-    if (plugin_process_file == NULL) {
-        fprintf(stderr, "Не удалось найти символ: %s\n", dlerror());
-        return EXIT_FAILURE;
-    }
-    const char* dir = strdup(argv[argc - 1]);
-    char *paths[2] = {(char*)dir, NULL};
+    
+    char* directory_for_search = strdup(argv[argc - 1]);
+    char *paths[2] = {(char*)directory_for_search, NULL};
     FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
     if (!fts_h) {
         fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
-    int count = 0;
     while (1) {
         errno = 0;
         FTSENT *ent = fts_read(fts_h);
@@ -306,21 +239,50 @@ int main(int argc, char *argv[]) {
                 break;
             case FTS_F:         // Простой файл
                 if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);
-                //struct option *long_opts;
-                struct option opt;// = long_opts[loptInd[i]];
-                char* arg = target;
-                if (arg) {
-                    opt.has_arg = 1;
-                    opt.flag = (void*)arg;
+                if (N_mode=0) {
+                    // опция И
+                    if (!O_mode) {
+                        int file_podhodit = 1;
+                        /*for (int i = 0; i < opt_enf_size; i++) {
+                            if (plugWork(option, ent->fts_name) == 1) { //плагин сказал что файл не подходит
+                                file_podhodit = 0;  //значит нам этот файл не нужен вовсе
+                                break;
+                            }
+                        }
+                        if (file_podhodit) printf(ent->fts_name);*/
+                    }
+                    // опция ИЛИ
+                    else {
+                        /*for (int i = 0; i < opt_enf_size; i++) {
+                            // если хотя бы по одному плагину подходит то выводим
+                            if (plugWork(option, ent->fts_name) == 0) {
+                                printf(ent->fts_name);
+                                break;
+                            }
+                        }*/
+                    }
                 }
                 else {
-                    opt.has_arg = 0;
-                }
-                if (!plugin_process_file(ent->fts_path, &opt, 1)) {
-                    printf("File %s contains the target sequence of bytes\n", ent->fts_name);
-                }
-                else {
-                    if (debug) printf("debug: File %s does not contain the target sequence of bytes\n", ent->fts_name);
+                    // опция И
+                    if (!O_mode) {
+                        int file_podhodit = 1;
+                        /*for (int i = 0; i < opt_enf_size; i++) {
+                            if (plugWork(option, ent->fts_name) == 0) {
+                                file_podhodit = 0;
+                                break;
+                            }
+                        }
+                        if (file_podhodit) printf(ent->fts_name);*/
+                    }
+                    // опция ИЛИ
+                    else {
+                        /*for (int i = 0; i < opt_enf_size; i++) {
+                            if (plugWork(option, ent->fts_name) == 1) {
+                                printf(ent->fts_name);
+                                break;
+                            }
+                        }*/
+                    }
                 }
                 break;
             case FTS_NS:        // Файл, для которого нет доступной информации stat(2). Содержимое поля Fa fts_statp не определено. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
@@ -336,8 +298,5 @@ int main(int argc, char *argv[]) {
         }
     }   
     fts_close(fts_h);
-    if (debug) fprintf(stderr, "debug: End debugging.\n");
-    dlclose(handle); // Закрытие библиотеки*/
-    
     return EXIT_SUCCESS;
 }
