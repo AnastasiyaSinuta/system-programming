@@ -10,9 +10,16 @@
 
 #include "plugin_api.h"
 
+struct Plugin {
+    void* file;
+    int numberOptions;
+    struct plugin_option *opts;
+};
+struct Plugin *plugins;
+int pluginsSize = 0;
+struct option *long_opts;
+
 int main(int argc, char *argv[]) {
-    int O_mode = 0;
-    int N_mode = 0;
     char* dirWithPlugins = get_current_dir_name();
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "-v")) {
@@ -34,8 +41,6 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "-h Display help for options.\n");
             exit(EXIT_SUCCESS);
         }
-        if (!strcmp(argv[i], "-O")) O_mode = 1;
-        if (!strcmp(argv[i], "-N")) N_mode = 1;
         if (!strcmp(argv[i], "-P")) {
             if (i == argc-1) {
                 fprintf(stderr, "ERROR: Option -P needs an argument <dir>\n");
@@ -98,81 +103,106 @@ int main(int argc, char *argv[]) {
     
     fts_close(ftsp);
 
-    char* directory = strdup(argv[argc-1]);
-
-    for (size_t i = 0; i < filePathsSize; i++) {
-        int opts_to_pass_len = 0;
-        struct option *opts_to_pass = NULL;
-        struct option *longopts = NULL;
-
-        char *lib_name = filePaths[i];
-
-        char *file_name = directory;
-
-        struct plugin_info pi = {0};
-
-        void *dl = dlopen(lib_name, RTLD_LAZY);
+    plugins = (struct Plugin*)malloc(filePathsSize * sizeof(struct Plugin));
+    if (plugins == 0) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+    
+    pluginsSize = filePathsSize;
+    for (int i = 0; i < pluginsSize; i++) {
+        void *dl = dlopen(filePaths[i], RTLD_LAZY);
+        free(filePaths[i]);
         if (!dl) {
             fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
-            goto END;
+            exit(EXIT_FAILURE);
         }
 
         // Check for plugin_get_info() func
         void *func = dlsym(dl, "plugin_get_info");
         if (!func) {
             fprintf(stderr, "ERROR: dlsym() failed: %s\n", dlerror());
-            goto END;
+            exit(EXIT_FAILURE);
         }
 
         typedef int (*pgi_func_t)(struct plugin_info*);
         pgi_func_t pgi_func = (pgi_func_t)func;            
 
+        struct plugin_info pi = {0};
         int ret = pgi_func(&pi);
         if (ret < 0) {        
             fprintf(stderr, "ERROR: plugin_get_info() failed\n");
-            goto END;
+            exit(EXIT_FAILURE);
         }
 
-        // Plugin info       
-        fprintf(stdout, "Plugin purpose:\t\t%s\n", pi.plugin_purpose);
-        fprintf(stdout, "Plugin author:\t\t%s\n", pi.plugin_author);
-        fprintf(stdout, "Supported options: ");
-        if (pi.sup_opts_len > 0) {
-            fprintf(stdout, "\n");
-            for (size_t i = 0; i < pi.sup_opts_len; i++) {
-                fprintf(stdout, "\t--%s\t\t%s\n", pi.sup_opts[i].opt.name, pi.sup_opts[i].opt_descr);
+        if (debug) // Plugin info 
+        {
+            fprintf(stdout, "Plugin purpose:\t\t%s\n", pi.plugin_purpose);
+            fprintf(stdout, "Plugin author:\t\t%s\n", pi.plugin_author);
+            fprintf(stdout, "Supported options: ");
+            if (pi.sup_opts_len > 0) {
+                fprintf(stdout, "\n");
+                for (size_t i = 0; i < pi.sup_opts_len; i++) {
+                    fprintf(stdout, "\t--%s\t\t%s\n", pi.sup_opts[i].opt.name, pi.sup_opts[i].opt_descr);
+                }
             }
+            else fprintf(stdout, "none (!?)\n");
+            fprintf(stdout, "\n");
         }
-        else {
-            fprintf(stdout, "none (!?)\n");
-        }
-        fprintf(stdout, "\n");
-
+        
         // If library supports no options then we have to stop
         if (pi.sup_opts_len == 0) {
             fprintf(stderr, "ERROR: library supports no options! How so?\n");
-            goto END;
+            exit(EXIT_FAILURE);
         }
-        
-        END:
-        if (opts_to_pass) {
-            for (int i = 0; i < opts_to_pass_len; i++)
-                free( (opts_to_pass + i)->flag );
-            free(opts_to_pass);
-        }
-        if (longopts) free(longopts);
-        if (lib_name) free(lib_name);
-        if (file_name) free(file_name);
-        if (dl) dlclose(dl);
+
+        plugins[i].file = dl;
+        plugins[i].numberOptions = pi.sup_opts_len;
+        plugins[i].opts = pi.sup_opts;
+    }
+    free(filePaths);
+    
+    size_t opt_count = 0;
+    for (int i = 0; i < pluginsSize; i++) {
+        opt_count += plugins[i].numberOptions;
     }
 
-    /*// Освобождаем память, выделенную для каждого пути файла 
-    for (size_t i = 0; i < filePathsSize; i++) { 
-        free(filePaths[i]); 
-    } 
- 
-    // Освобождаем память, выделенную для массива указателей на строки 
-    free(filePaths);*/
+    long_opts = (struct option*)malloc(opt_count * sizeof(struct option));
+    if (!long_opts) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+    
+    opt_count = 0;
+    for (int i = 0; i < pluginsSize; i++) {
+        for (int j = 0; j < plugins[i].numberOptions; j++) {
+            long_opts[opt_count] = plugins[i].opts[j].opt;
+            opt_count++;
+        }
+    }
+    
+    int O_mode = 0;
+    int N_mode = 0;
+    int ret;
+    while (1) {
+        int opt_ind = 0;
+        ret = getopt_long(argc, argv, "P:AON", long_opts, &opt_ind);
+        switch (ret) {
+        case -1: break;
+        case 'P': break; 
+        case 'A': break;
+        case 'O':
+            O_mode = 1;
+            break;
+        case 'N':
+            N_mode = 1;
+        case ':': exit(EXIT_FAILURE);
+        case '?': exit(EXIT_FAILURE);
+        default:
+            
+        }
+    }
+    //char* directory = strdup(argv[argc-1]);
 
     /*NEED_MAKE
     // Внести их в all_opt_from_env.
