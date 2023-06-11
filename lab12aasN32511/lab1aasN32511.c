@@ -11,6 +11,9 @@
 #include "plugin_api.h"
 
 int main(int argc, char *argv[]) {
+    int A_mode = 1;
+    int O_mode = 0;
+    int N_mode = 0;
     char* dirWithPlugins = get_current_dir_name();
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "-v")) {
@@ -32,6 +35,11 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "-h Display help for options.\n");
             exit(EXIT_SUCCESS);
         }
+        if (!strcmp(argv[i], "-O")) {
+            O_mode = 1;
+            A_mode = 0;
+        }
+        if (!strcmp(argv[i], "-N")) N_mode = 1;
         if (!strcmp(argv[i], "-P")) {
             if (i == argc-1) {
                 fprintf(stderr, "ERROR: Option -P needs an argument <dir>\n");
@@ -68,13 +76,11 @@ int main(int argc, char *argv[]) {
     
     while ((entry = fts_read(ftsp)) != NULL) {
         if (entry->fts_info & FTS_F && strcmp(entry->fts_name + entry->fts_namelen - 3, ".so") == 0) {
-            // Выделяем память для пути файла
             char *path = strdup(entry->fts_path);
             if (path == NULL) {
                 perror("strdup");
                 exit(EXIT_FAILURE);
             }
-
             // Увеличиваем размер массива и сохраняем путь файла в него
             filePathsSize++;
             filePaths = realloc(filePaths, filePathsSize * sizeof(char *));
@@ -96,7 +102,7 @@ int main(int argc, char *argv[]) {
 
     struct Plugin {
         int index;
-        void* file;
+        char* file;
         int numberOptions;
         struct plugin_option *opts;
     };
@@ -108,9 +114,9 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    void *dl;
     for (int i = 0; i < pluginsSize; i++) {
-        void *dl = dlopen(filePaths[i], RTLD_LAZY);
-        free(filePaths[i]);
+        dl = dlopen(strdup(filePaths[i]), RTLD_LAZY);
         if (!dl) {
             fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
             exit(EXIT_FAILURE);
@@ -154,7 +160,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         plugins[i].index = i;
-        plugins[i].file = dl;
+        plugins[i].file = strdup(filePaths[i]);
         plugins[i].numberOptions = pi.sup_opts_len;
         plugins[i].opts = pi.sup_opts;
     }
@@ -171,44 +177,25 @@ int main(int argc, char *argv[]) {
     opt_count = 0;
 
     // Считываем опции, заданные командной строкой
-    int O_mode = 0;
-    int N_mode = 0;
-    int ret;
-    while (1) {
-        if (ret = getopt(argc, argv, "P:AON") == -1) break;
-        switch (ret) {
-        case 'O':
-            O_mode = 1;
-            break;
-        case 'N':
-            N_mode = 1;
-            break;
-        case ':': exit(EXIT_FAILURE);
-        case '?': exit(EXIT_FAILURE);
-        default: break;
-        }
-        for (int op = optind; op < argc; op++) {
-            char* obrStr = strdup(argv[op]);
-            int len = strlen(obrStr);
-            if (len <= 2) break;
-            memmove(obrStr, obrStr + 2, len - 1);
-            obrStr[len - 2] = '\0';
-            for (int i = 0; i < pluginsSize; i++) {
-                for (int j = 0; j < plugins[i].numberOptions; j++) {
-                    char* name = (char*)plugins[i].opts[j].opt.name;
-                    if (!strcmp(obrStr, name)){
-                        if (debug) fprintf(stderr, "debug: In env found option: %s\n", name);
-                        long_opts[opt_count] = plugins[i].opts[j].opt;
-                        if (long_opts[opt_count].has_arg) 
-                            long_opts[opt_count].flag = (void*)argv[op+1];
-                        opt_plug_index[opt_count] = plugins[i].index;
-                        opt_count++;
-                        break;
-                    }
+    for (int op = optind; op < argc; op++) {
+        char* obrStr = strdup(argv[op]);
+        int len = strlen(obrStr);
+        if (len <= 2) continue;;
+        memmove(obrStr, obrStr + 2, len - 1);
+        obrStr[len - 2] = '\0';
+        for (int i = 0; i < pluginsSize; i++) {
+            for (int j = 0; j < plugins[i].numberOptions; j++) {
+                char* name = (char*)plugins[i].opts[j].opt.name;
+                if (!strcmp(obrStr, name)){
+                    if (debug) fprintf(stderr, "debug: In env found option: %s\n", name);
+                    long_opts[opt_count] = plugins[i].opts[j].opt;
+                    if (long_opts[opt_count].has_arg)
+                        long_opts[opt_count].flag = (void*)argv[op+1];
+                    opt_plug_index[opt_count] = plugins[i].index;
+                    opt_count++;
                 }
             }
         }
-        break;
     }
 
     char* directory_for_search = strdup(argv[argc - 1]);
@@ -216,7 +203,8 @@ int main(int argc, char *argv[]) {
 
     void *func;
     typedef int (*ppf_func_t)(const char*, struct option*, size_t);
-    ppf_func_t ppf_func = (ppf_func_t)func; 
+
+    int result;
 
     char *pathDir[2] = {(char*)directory_for_search, NULL};
     FTS *fts_h = fts_open(pathDir, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
@@ -253,7 +241,12 @@ int main(int argc, char *argv[]) {
                 if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);                
                 int suitableAND = 1, suitableOR = 1;
                 for (int i = 0; i < pluginsSize; i++) {
-                    func = dlsym(plugins[i].file, "plugin_process_file");
+                    dl = dlopen(strdup(plugins[i].file), RTLD_LAZY);
+                    if (!dl) {
+                        fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
+                        exit(EXIT_FAILURE);
+                    }
+                    func = dlsym(dl, "plugin_process_file");
                     if (!func) {
                         fprintf(stderr, "ERROR: no plugin_process_file() function found\n");
                         exit(EXIT_FAILURE);
@@ -268,10 +261,11 @@ int main(int argc, char *argv[]) {
                             in_opts_len++;
                         }
                     }
-                    int result = ppf_func(ent->fts_name, in_opts, in_opts_len);
-                    fprintf(stdout, "plugin_process_file() returned %d\n", result);
+                    ppf_func_t ppf_func = (ppf_func_t)func;
+                    result = ppf_func(ent->fts_path, in_opts, in_opts_len);
+                    if (debug) fprintf(stderr, "debug: plugin_process_file() returned %d\n", result);
                     if (result == -1) {
-                        fprintf(stderr, "ERROR: in working plugin getting wrong\n");
+                        fprintf(stderr, "ERROR: An error occurred while running the plugin\n");
                         exit(EXIT_FAILURE);
                     }
                     else if (!O_mode && ((!N_mode && result) || (N_mode && !result))) {

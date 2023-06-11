@@ -32,7 +32,7 @@ static int g_po_arr_len = sizeof(g_po_arr)/sizeof(g_po_arr[0]);
 //
 //  Private functions
 //
-char* convertToDecimal(char*);
+char* convertToDecimal(char*, char*);
 
 //
 //  API functions
@@ -71,7 +71,7 @@ int plugin_process_file(const char *fname,
     for (size_t i = 0; i < in_opts_len; i++) {
         if (!strcmp(in_opts[i].name, OPT_BIT_SEQ_STR)) {
             char* target_not_convert = (char *)in_opts[i].flag;
-            char* target = convertToDecimal(target_not_convert);
+            char* target = convertToDecimal(debug, target_not_convert);
             
             // Открываем файл для чтения
             fp = fopen(fname, "rb");
@@ -108,7 +108,7 @@ int plugin_process_file(const char *fname,
             if (result != NULL) {
                 // Вычисляем позицию, где найдена последовательность
                 long pos = result - content;
-                if (debug) printf("debug: Found at position %ld\n", pos);
+                if (debug) printf("debug: The target sequence is found at position %ld\n", pos);
                 // Освобождаем выделенную память и закрываем файл
                 free(content);
                 fclose(fp);
@@ -129,7 +129,7 @@ int plugin_process_file(const char *fname,
     return 0;
 }
 
-char* convertToDecimal(char* number) {
+char* convertToDecimal(char* debug, char* number) {
     int base = 0;
     int i = 0;
     int decimal = 0;
@@ -141,7 +141,7 @@ char* convertToDecimal(char* number) {
         base = 16;
         i = 2;
     } else {
-        fprintf(stderr, "The target in decimal notation: %s\n", (char*)number);
+        if (debug) fprintf(stderr, "debug: The target in decimal notation: %s\n", (char*)number);
         return (char*)number;
     }
     
@@ -171,6 +171,6 @@ char* convertToDecimal(char* number) {
     }
     char* decimal_str = (char*)malloc((len1 + 1) * sizeof(char));
     sprintf(decimal_str, "%d", decimal);
-    fprintf(stderr, "The target in decimal notation: %s\n", decimal_str);
+    if (debug) fprintf(stderr, "debug: The target in decimal notation: %s\n", decimal_str);
     return decimal_str;
 }
