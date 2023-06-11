@@ -14,11 +14,14 @@ static char *g_plugin_purpose = "Chek if the file contains a given sequence of b
 
 static char *g_plugin_author = "Sinuta Anastasiya";
 
+#define OPT_BIT_SEQ_STR "bit-seq"
+
 static struct plugin_option g_po_arr[] = {
     {
-        {"bit-seq",
-           1,
-           0, 0,
+        {
+            OPT_BIT_SEQ_STR,
+            required_argument,
+            0, 0,
         },
     "Target sequence of bits"
     }
@@ -52,7 +55,6 @@ int plugin_process_file(const char *fname,
         size_t in_opts_len) {
     
     char *debug = getenv("LAB1DEBUG");
-
     if (!fname || !in_opts || !in_opts_len) {
         errno = EINVAL;
         return -1;
@@ -67,55 +69,61 @@ int plugin_process_file(const char *fname,
 
     FILE *fp;
     for (size_t i = 0; i < in_opts_len; i++) {
-        char* target_not_convert = (char *)in_opts[i].flag;
-        char* target = convertToDecimal(target_not_convert);
-        
-        // Открываем файл для чтения
-        fp = fopen(fname, "rb");
-        if (fp == NULL) {
-            fprintf(stderr, "Error opening file %s: %s\n", fname, strerror(errno));
-            return -1;
-        }
-        // Получаем размер файла
-        fseek(fp, 0, SEEK_END);
-        long fsize = ftell(fp);
-        rewind(fp);
-        
-        // Выделяем память для хранения содержимого файла
-        char *content = malloc(fsize + 1);
-        if (content == NULL) {
-            fprintf(stderr, "Error allocating memory: %s\n", strerror(errno));
-            fclose(fp);
-            return -1;
-        }
+        if (!strcmp(in_opts[i].name, OPT_BIT_SEQ_STR)) {
+            char* target_not_convert = (char *)in_opts[i].flag;
+            char* target = convertToDecimal(target_not_convert);
+            
+            // Открываем файл для чтения
+            fp = fopen(fname, "rb");
+            if (fp == NULL) {
+                fprintf(stderr, "ERROR: Error opening file %s: %s\n", fname, strerror(errno));
+                return -1;
+            }
+            // Получаем размер файла
+            fseek(fp, 0, SEEK_END);
+            long fsize = ftell(fp);
+            rewind(fp);
+            
+            // Выделяем память для хранения содержимого файла
+            char *content = malloc(fsize + 1);
+            if (content == NULL) {
+                fprintf(stderr, "ERROR: Error allocating memory: %s\n", strerror(errno));
+                fclose(fp);
+                return -1;
+            }
 
-        // Читаем содержимое файла
-        if (fread(content, fsize, 1, fp) != 1) {
-            fprintf(stderr, "Error reading file %s: %s\n", fname, strerror(errno));
-            free(content);
-            fclose(fp);
-            return -1;
-        }
+            // Читаем содержимое файла
+            if (fread(content, fsize, 1, fp) != 1) {
+                fprintf(stderr, "ERROR: Error reading file %s: %s\n", fname, strerror(errno));
+                free(content);
+                fclose(fp);
+                return -1;
+            }
 
-        // Добавляем завершающий нулевой символ
-        content[fsize] = '\0';
+            // Добавляем завершающий нулевой символ
+            content[fsize] = '\0';
 
-        // Ищем последовательность байтов в содержимом файла
-        char *result = strstr(content, target);
-        if (result != NULL) {
-            // Вычисляем позицию, где найдена последовательность
-            long pos = result - content;
-            if (debug) printf("debug: Found at position %ld\n", pos);
-            // Освобождаем выделенную память и закрываем файл
-            free(content);
-            fclose(fp);
-            return 0;
+            // Ищем последовательность байтов в содержимом файла
+            char *result = strstr(content, target);
+            if (result != NULL) {
+                // Вычисляем позицию, где найдена последовательность
+                long pos = result - content;
+                if (debug) printf("debug: Found at position %ld\n", pos);
+                // Освобождаем выделенную память и закрываем файл
+                free(content);
+                fclose(fp);
+                return 0;
+            }
+            else {
+                // Освобождаем выделенную память и закрываем файл
+                free(content);
+                fclose(fp);
+                return 1;
+            }
         }
         else {
-            // Освобождаем выделенную память и закрываем файл
-            free(content);
-            fclose(fp);
-            return 1;
+            errno = EINVAL;
+            return -1;
         }
     }
     return 0;
@@ -149,7 +157,7 @@ char* convertToDecimal(char* number) {
         } else if (digit >= 'a' && digit <= 'f') {
             value = 10 + (digit - 'a');
         } else {
-            fprintf(stderr, "Invalid number format. Non-numeric digit found.\n");
+            fprintf(stderr, "ERROR: Invalid number format. Non-numeric digit found.\n");
             exit(EXIT_FAILURE);
         }
 

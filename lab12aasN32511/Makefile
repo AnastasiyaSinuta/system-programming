@@ -27,4 +27,4 @@ do_debug:
 	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/tests
 
 plug:
-	LAB1DEBUG=1 ./lab1aasN32511 -P /home/vboxuser/Desktop/system-programming/plugs --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/tests
+	LAB1DEBUG=1 ./lab1aasN32511 -P /home/vboxuser/Desktop/system-programming/plugs --bit-seq 0b110110100001 --entropy 0.5 /home/vboxuser/Desktop/system-programming/lab12aasN32511/tests

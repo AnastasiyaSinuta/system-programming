@@ -10,15 +10,6 @@
 
 #include "plugin_api.h"
 
-struct Plugin {
-    void* file;
-    int numberOptions;
-    struct plugin_option *opts;
-};
-struct Plugin *plugins;
-int pluginsSize = 0;
-struct option *long_opts;
-
 int main(int argc, char *argv[]) {
     char* dirWithPlugins = get_current_dir_name();
     for (int i = 0; i < argc; i++) {
@@ -103,13 +94,20 @@ int main(int argc, char *argv[]) {
     
     fts_close(ftsp);
 
-    plugins = (struct Plugin*)malloc(filePathsSize * sizeof(struct Plugin));
+    struct Plugin {
+        int index;
+        void* file;
+        int numberOptions;
+        struct plugin_option *opts;
+    };
+
+    int pluginsSize = filePathsSize;
+    struct Plugin *plugins = (struct Plugin*)malloc(filePathsSize * sizeof(struct Plugin));
     if (plugins == 0) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
-    
-    pluginsSize = filePathsSize;
+
     for (int i = 0; i < pluginsSize; i++) {
         void *dl = dlopen(filePaths[i], RTLD_LAZY);
         free(filePaths[i]);
@@ -137,7 +135,7 @@ int main(int argc, char *argv[]) {
 
         if (debug) // Plugin info 
         {
-            fprintf(stdout, "Plugin purpose:\t\t%s\n", pi.plugin_purpose);
+            fprintf(stdout, "\nPlugin purpose:\t\t%s\n", pi.plugin_purpose);
             fprintf(stdout, "Plugin author:\t\t%s\n", pi.plugin_author);
             fprintf(stdout, "Supported options: ");
             if (pi.sup_opts_len > 0) {
@@ -155,7 +153,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "ERROR: library supports no options! How so?\n");
             exit(EXIT_FAILURE);
         }
-
+        plugins[i].index = i;
         plugins[i].file = dl;
         plugins[i].numberOptions = pi.sup_opts_len;
         plugins[i].opts = pi.sup_opts;
@@ -166,30 +164,19 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < pluginsSize; i++) {
         opt_count += plugins[i].numberOptions;
     }
-
-    long_opts = (struct option*)malloc(opt_count * sizeof(struct option));
-    if (!long_opts) {
-        perror("malloc");
-        exit(EXIT_FAILURE);
-    }
-    
+    struct option *long_opts;
+    int *opt_plug_index;
+    long_opts = calloc(opt_count, sizeof(struct option));
+    opt_plug_index = calloc(opt_count, sizeof(int));
     opt_count = 0;
-    for (int i = 0; i < pluginsSize; i++) {
-        for (int j = 0; j < plugins[i].numberOptions; j++) {
-            long_opts[opt_count] = plugins[i].opts[j].opt;
-            opt_count++;
-        }
-    }
 
+    // Считываем опции, заданные командной строкой
     int O_mode = 0;
     int N_mode = 0;
     int ret;
-    int opt_ind = 0;
     while (1) {
-        if (ret = getopt_long(argc, argv, "P:AON", long_opts, &opt_ind) == -1) break;
+        if (ret = getopt(argc, argv, "P:AON") == -1) break;
         switch (ret) {
-        case 'P': break; 
-        case 'A': break;
         case 'O':
             O_mode = 1;
             break;
@@ -198,14 +185,41 @@ int main(int argc, char *argv[]) {
             break;
         case ':': exit(EXIT_FAILURE);
         case '?': exit(EXIT_FAILURE);
-        default:
-            // занести в opt_env
+        default: break;
         }
+        for (int op = optind; op < argc; op++) {
+            char* obrStr = strdup(argv[op]);
+            int len = strlen(obrStr);
+            if (len <= 2) break;
+            memmove(obrStr, obrStr + 2, len - 1);
+            obrStr[len - 2] = '\0';
+            for (int i = 0; i < pluginsSize; i++) {
+                for (int j = 0; j < plugins[i].numberOptions; j++) {
+                    char* name = (char*)plugins[i].opts[j].opt.name;
+                    if (!strcmp(obrStr, name)){
+                        if (debug) fprintf(stderr, "debug: In env found option: %s\n", name);
+                        long_opts[opt_count] = plugins[i].opts[j].opt;
+                        if (long_opts[opt_count].has_arg) 
+                            long_opts[opt_count].flag = (void*)argv[op+1];
+                        opt_plug_index[opt_count] = plugins[i].index;
+                        opt_count++;
+                        break;
+                    }
+                }
+            }
+        }
+        break;
     }
-    
+
     char* directory_for_search = strdup(argv[argc - 1]);
-    char *paths[2] = {(char*)directory_for_search, NULL};
-    FTS *fts_h = fts_open(paths, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
+    if (debug) fprintf(stderr, "debug: Searching files in directory: %s\n", directory_for_search);
+
+    void *func;
+    typedef int (*ppf_func_t)(const char*, struct option*, size_t);
+    ppf_func_t ppf_func = (ppf_func_t)func; 
+
+    char *pathDir[2] = {(char*)directory_for_search, NULL};
+    FTS *fts_h = fts_open(pathDir, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
     if (!fts_h) {
         fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
         return EXIT_FAILURE;
@@ -214,10 +228,8 @@ int main(int argc, char *argv[]) {
         errno = 0;
         FTSENT *ent = fts_read(fts_h);
         if (ent == NULL) {
-            if (errno != 0)
-                continue;   // Проблема, переходим к следующему элементу
-            else
-                break;      // В каталоге больше ничего нет
+            if (errno != 0) continue;   // Проблема, переходим к следующему элементу
+            else break;      // В каталоге больше ничего нет
         }
         switch (ent->fts_info) {
             case FTS_D:         // Каталог, посещаемый в прямом порядке
@@ -238,52 +250,43 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
                 break;
             case FTS_F:         // Простой файл
-                if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);
-                if (N_mode=0) {
-                    // опция И
-                    if (!O_mode) {
-                        int file_podhodit = 1;
-                        /*for (int i = 0; i < opt_enf_size; i++) {
-                            if (plugWork(option, ent->fts_name) == 1) { //плагин сказал что файл не подходит
-                                file_podhodit = 0;  //значит нам этот файл не нужен вовсе
-                                break;
-                            }
-                        }
-                        if (file_podhodit) printf(ent->fts_name);*/
+                if (debug) fprintf(stderr, "debug: Found file \"%s\"\n", ent->fts_name);                
+                int suitableAND = 1, suitableOR = 1;
+                for (int i = 0; i < pluginsSize; i++) {
+                    func = dlsym(plugins[i].file, "plugin_process_file");
+                    if (!func) {
+                        fprintf(stderr, "ERROR: no plugin_process_file() function found\n");
+                        exit(EXIT_FAILURE);
                     }
-                    // опция ИЛИ
-                    else {
-                        /*for (int i = 0; i < opt_enf_size; i++) {
-                            // если хотя бы по одному плагину подходит то выводим
-                            if (plugWork(option, ent->fts_name) == 0) {
-                                printf(ent->fts_name);
-                                break;
-                            }
-                        }*/
+                    size_t in_opts_len = plugins[i].numberOptions;
+                    struct option *in_opts;
+                    in_opts = calloc(in_opts_len, sizeof(struct option));
+                    in_opts_len = 0;
+                    for (int j = 0; j < opt_count; j++) {
+                        if (opt_plug_index[j] == plugins[i].index) {
+                            in_opts[in_opts_len] = long_opts[j];
+                            in_opts_len++;
+                        }
+                    }
+                    int result = ppf_func(ent->fts_name, in_opts, in_opts_len);
+                    fprintf(stdout, "plugin_process_file() returned %d\n", result);
+                    if (result == -1) {
+                        fprintf(stderr, "ERROR: in working plugin getting wrong\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    else if (!O_mode && ((!N_mode && result) || (N_mode && !result))) {
+                        suitableAND = 0;
+                        break;
+                    }
+                    else if (O_mode && ((!N_mode && !result) || (N_mode && result))) {
+                        suitableOR = 1;
+                        break;
                     }
                 }
-                else {
-                    // опция И
-                    if (!O_mode) {
-                        int file_podhodit = 1;
-                        /*for (int i = 0; i < opt_enf_size; i++) {
-                            if (plugWork(option, ent->fts_name) == 0) {
-                                file_podhodit = 0;
-                                break;
-                            }
-                        }
-                        if (file_podhodit) printf(ent->fts_name);*/
-                    }
-                    // опция ИЛИ
-                    else {
-                        /*for (int i = 0; i < opt_enf_size; i++) {
-                            if (plugWork(option, ent->fts_name) == 1) {
-                                printf(ent->fts_name);
-                                break;
-                            }
-                        }*/
-                    }
+                if (suitableAND && suitableOR) {
+                    fprintf(stderr, "Found a suitable file: %s\n", ent->fts_path);
                 }
+                else if (debug) fprintf(stderr, "debug: File does not match: %s\n", ent->fts_path);
                 break;
             case FTS_NS:        // Файл, для которого нет доступной информации stat(2). Содержимое поля Fa fts_statp не определено. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
