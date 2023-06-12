@@ -1,7 +1,7 @@
 \CFLAGS=-Wall -Wextra -Werror -O3
 TARGETS=lab1aasN32511 libaasN32511.so
-FOLDERTEST=/home/vboxuser/Desktop/system-programming/lab12aasN32511/tests
-FOLDERPLUGIN=/home/vboxuser/Desktop/system-programming
+FOLDERTEST=./tests
+FOLDERPLUGIN=./plugins
 
 .PHONY: all clean
 
