@@ -16,6 +16,9 @@ lab1aasN32511: lab1aasN32511.c plugin_api.h
 libaasN32511.so: libaasN32511.c plugin_api.h
 	gcc $(CFLAGS) -g -shared -fPIC -o libaasN32511.so libaasN32511.c -ldl -lm
 
+valgrind:
+	valgrind --leak-check=full ./lab1aasN32511 --bit-seq 0b110110100001 $(FOLDERTEST) > valgrind.txt 2>&1
+
 vers:
 	./lab1aasN32511 -v
 

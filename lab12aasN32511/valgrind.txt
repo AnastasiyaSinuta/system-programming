@@ -1,0 +1,78 @@
+==18450== Memcheck, a memory error detector
+==18450== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==18450== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==18450== Command: ./lab1aasN32511 --bit-seq 0b110110100001 ./tests
+==18450== 
+Found a suitable file: ./tests/folder-test-2/test.txt
+
+Found a suitable file: ./tests/test1.txt
+
+==18450== 
+==18450== HEAP SUMMARY:
+==18450==     in use at exit: 9,196 bytes in 65 blocks
+==18450==   total heap usage: 140 allocs, 75 frees, 354,307 bytes allocated
+==18450== 
+==18450== 8 bytes in 1 blocks are definitely lost in loss record 1 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x491260E: strdup (strdup.c:42)
+==18450==    by 0x10A1F0: main (lab1aasN32511.c:194)
+==18450== 
+==18450== 20 bytes in 1 blocks are definitely lost in loss record 2 of 20
+==18450==    at 0x484DA83: calloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x109F07: main (lab1aasN32511.c:167)
+==18450== 
+==18450== 30 bytes in 6 blocks are definitely lost in loss record 3 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x485C98B: convertToDecimal (libaasN32511.c:172)
+==18450==    by 0x485C55B: plugin_process_file (libaasN32511.c:74)
+==18450==    by 0x10A6B9: main (lab1aasN32511.c:266)
+==18450== 
+==18450== 49 bytes in 4 blocks are definitely lost in loss record 6 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x491260E: strdup (strdup.c:42)
+==18450==    by 0x109F4D: main (lab1aasN32511.c:172)
+==18450== 
+==18450== 57 bytes in 1 blocks are definitely lost in loss record 7 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x491260E: strdup (strdup.c:42)
+==18450==    by 0x497FC08: get_current_dir_name (getdirname.c:40)
+==18450==    by 0x10946D: main (lab1aasN32511.c:22)
+==18450== 
+==18450== 160 bytes in 1 blocks are definitely lost in loss record 9 of 20
+==18450==    at 0x484DA83: calloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x109EEC: main (lab1aasN32511.c:166)
+==18450== 
+==18450== 229 bytes in 3 blocks are definitely lost in loss record 13 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x491260E: strdup (strdup.c:42)
+==18450==    by 0x109986: main (lab1aasN32511.c:77)
+==18450== 
+==18450== 229 bytes in 3 blocks are definitely lost in loss record 14 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x491260E: strdup (strdup.c:42)
+==18450==    by 0x109B25: main (lab1aasN32511.c:110)
+==18450== 
+==18450== 325 (96 direct, 229 indirect) bytes in 1 blocks are definitely lost in loss record 15 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x109AC7: main (lab1aasN32511.c:101)
+==18450== 
+==18450== 768 bytes in 12 blocks are definitely lost in loss record 16 of 20
+==18450==    at 0x484DA83: calloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x10A5A3: main (lab1aasN32511.c:253)
+==18450== 
+==18450== 888 bytes in 12 blocks are definitely lost in loss record 18 of 20
+==18450==    at 0x4848899: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==18450==    by 0x491260E: strdup (strdup.c:42)
+==18450==    by 0x10A4C5: main (lab1aasN32511.c:237)
+==18450== 
+==18450== LEAK SUMMARY:
+==18450==    definitely lost: 2,534 bytes in 45 blocks
+==18450==    indirectly lost: 229 bytes in 3 blocks
+==18450==      possibly lost: 0 bytes in 0 blocks
+==18450==    still reachable: 6,433 bytes in 17 blocks
+==18450==         suppressed: 0 bytes in 0 blocks
+==18450== Reachable blocks (those to which a pointer was found) are not shown.
+==18450== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==18450== 
+==18450== For lists of detected and suppressed errors, rerun with: -s
+==18450== ERROR SUMMARY: 11 errors from 11 contexts (suppressed: 0 from 0)
