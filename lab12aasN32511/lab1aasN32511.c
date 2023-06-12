@@ -231,8 +231,8 @@ int main(int argc, char *argv[]) {
 
                 // Значение, возвращаемое функцией plugin_process_file()
                 int result;
-                
-                int suitableAND = 1, suitableOR = 0 ;
+                int errorfile = 0;
+                int suitableAND = 1, suitableOR = 0;
                 for (int i = 0; i < pluginsSize; i++) {
                     dl = dlopen(strdup(plugins[i].file), RTLD_LAZY);
                     if (!dl) {
@@ -267,7 +267,8 @@ int main(int argc, char *argv[]) {
                     if (debug) fprintf(stderr, "debug: plugin_process_file() returned %d\n", result);
                     if (result == -1) {
                         fprintf(stderr, "ERROR: An error occurred while running the plugin\n");
-                        exit(EXIT_FAILURE);
+                        errorfile++;
+                        break;
                     }
                     // Если работает опция И
                     else if (!O_mode && ((!N_mode && result) || (N_mode && !result))) {
@@ -278,6 +279,7 @@ int main(int argc, char *argv[]) {
                         suitableOR = 1;
                     }
                 }
+                if (errorfile) break;
                 if (!O_mode) {
                     if (debug) fprintf(stderr, "debug: Result option AND: %d\n", suitableAND);
                     if (suitableAND) fprintf(stderr, "Found a suitable file: %s\n\n", ent->fts_path);

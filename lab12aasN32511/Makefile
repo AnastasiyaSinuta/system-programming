@@ -1,5 +1,7 @@
 \CFLAGS=-Wall -Wextra -Werror -O3
 TARGETS=lab1aasN32511 libaasN32511.so
+FOLDERTEST=/home/vboxuser/Desktop/system-programming/lab12aasN32511/tests
+FOLDERPLUGIN=/home/vboxuser/Desktop/system-programming
 
 .PHONY: all clean
 
@@ -21,10 +23,29 @@ help:
 	./lab1aasN32511 -h
 
 do:
-	./lab1aasN32511 --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/lab12aasN32511/tests
+	./lab1aasN32511 --bit-seq 0b110110100001 $(FOLDERTEST)
 
-do_debug:
-	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 0b110110100001 /home/vboxuser/Desktop/system-programming/lab12aasN32511/tests
+do_debug_bin:
+	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 0b110110100001 $(FOLDERTEST)
+
+do_debug_dec:
+	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 3489 $(FOLDERTEST)
+
+do_debug_hex:
+	LAB1DEBUG=1 ./lab1aasN32511 --bit-seq 0xDA1 $(FOLDERTEST)
 
 plug:
-	LAB1DEBUG=1 ./lab1aasN32511 -P /home/vboxuser/Desktop/system-programming/plugs -O --bit-seq 0b110110100001 --entropy 0.570665 /home/vboxuser/Desktop/system-programming/lab12aasN32511/tests
+	LAB1DEBUG=1 ./lab1aasN32511 -P $(FOLDERPLUGIN) --bit-seq 0b110110100001 --entropy 0.5 $(FOLDERTEST)
+
+A:
+	LAB1DEBUG=1 ./lab1aasN32511 -P $(FOLDERPLUGIN) -A --bit-seq 0b110110100001 --entropy 0.5 $(FOLDERTEST)
+
+NA:
+	LAB1DEBUG=1 ./lab1aasN32511 -P $(FOLDERPLUGIN) -N -A --bit-seq 0b110110100001 --entropy 0.5 $(FOLDERTEST)
+
+O:
+	LAB1DEBUG=1 ./lab1aasN32511 -P $(FOLDERPLUGIN) -O --bit-seq 0b110110100001 --entropy 0.5 $(FOLDERTEST)
+
+NO:
+	LAB1DEBUG=1 ./lab1aasN32511 -P $(FOLDERPLUGIN) -N -O --bit-seq 0b110110100001 --entropy 0.5 $(FOLDERTEST)
+	
