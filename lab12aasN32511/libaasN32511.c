@@ -105,6 +105,7 @@ int plugin_process_file(const char *fname,
 
             // Ищем последовательность байтов в содержимом файла
             char *result = strstr(content, target);
+            free(target);
             if (result != NULL) {
                 // Вычисляем позицию, где найдена последовательность
                 long pos = result - content;

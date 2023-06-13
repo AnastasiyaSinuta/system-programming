@@ -61,25 +61,19 @@ int main(int argc, char *argv[]) {
 
     // Поиск плагина
     if (debug) fprintf(stderr, "debug: Searching plugins in directory: %s\n", dirWithPlugins);
-    FTS *ftsp;
-    FTSENT *entry;
-    char *paths[] = { dirWithPlugins, NULL };
-    ftsp = fts_open(paths, FTS_NOCHDIR, NULL);
+    char *paths[] = { (char*)dirWithPlugins, NULL };
+    FTS *ftsp = fts_open(paths, FTS_NOCHDIR, NULL);
     if (ftsp == NULL) {
         perror("fts_open");
         exit(EXIT_FAILURE);
     }
-    // Создаем массив указателей на строки для хранения путей файлов
-    char **filePaths = NULL;
+    FTSENT *entry;
+    char *path;
     size_t filePathsSize = 0;
+    char **filePaths = NULL;
     while ((entry = fts_read(ftsp)) != NULL) {
         if (entry->fts_info & FTS_F && strcmp(entry->fts_name + entry->fts_namelen - 3, ".so") == 0) {
-            char *path = strdup(entry->fts_path);
-            if (path == NULL) {
-                perror("strdup");
-                exit(EXIT_FAILURE);
-            }
-            // Увеличиваем размер массива и сохраняем путь файла в него
+            path = strdup(entry->fts_path);
             filePathsSize++;
             filePaths = realloc(filePaths, filePathsSize * sizeof(char *));
             if (filePaths == NULL) {
@@ -107,7 +101,7 @@ int main(int argc, char *argv[]) {
     // Вывод информации о найденных плагинах
     void *dl;
     for (int i = 0; i < pluginsSize; i++) {
-        dl = dlopen(strdup(filePaths[i]), RTLD_LAZY);
+        dl = dlopen(filePaths[i], RTLD_LAZY);
         if (!dl) {
             fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
             exit(EXIT_FAILURE);
@@ -150,11 +144,10 @@ int main(int argc, char *argv[]) {
         }
         // Заполнение структуры Plugin
         plugins[i].index = i;
-        plugins[i].file = strdup(filePaths[i]);
+        plugins[i].file = filePaths[i];
         plugins[i].numberOptions = pi.sup_opts_len;
         plugins[i].opts = pi.sup_opts;
     }
-    free(filePaths);
     
     // long_opts - массив структур option с опциями из командной строки
     size_t opt_count = 0;
@@ -188,6 +181,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         }
+        free(obrStr);
     }
 
     // Директория для поиска файлов задается последним аргументом
@@ -199,7 +193,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "fts_open() failed: %s\n", strerror(errno));
         return EXIT_FAILURE;
     }
-    
+    free(directory_for_search);
+
     // Обход директории
     while (1) {
         errno = 0;
@@ -230,11 +225,10 @@ int main(int argc, char *argv[]) {
                 if (debug) fprintf(stderr, "\ndebug: Found file \"%s\"\n", ent->fts_name);
 
                 // Значение, возвращаемое функцией plugin_process_file()
-                int result;
                 int errorfile = 0;
                 int suitableAND = 1, suitableOR = 0;
                 for (int i = 0; i < pluginsSize; i++) {
-                    dl = dlopen(strdup(plugins[i].file), RTLD_LAZY);
+                    dl = dlopen(plugins[i].file, RTLD_LAZY);
                     if (!dl) {
                         fprintf(stderr, "ERROR: dlopen() failed: %s\n", dlerror());
                         exit(EXIT_FAILURE);
@@ -251,6 +245,10 @@ int main(int argc, char *argv[]) {
                     size_t in_opts_len = plugins[i].numberOptions;
                     struct option *in_opts;
                     in_opts = calloc(in_opts_len, sizeof(struct option));
+                    if (!in_opts) {
+                        fprintf(stderr, "ERROR: calloc() failed: %s\n", strerror(errno));
+                        exit(EXIT_FAILURE);
+                    }
                     in_opts_len = 0;
                     for (int j = 0; j < opt_count; j++) {
                         if (opt_plug_index[j] == plugins[i].index) {
@@ -263,7 +261,7 @@ int main(int argc, char *argv[]) {
                     // Работа функции plugin_process_file()
                     typedef int (*ppf_func_t)(const char*, struct option*, size_t);
                     ppf_func_t ppf_func = (ppf_func_t)func;
-                    result = ppf_func(ent->fts_path, in_opts, in_opts_len);
+                    int result = ppf_func(ent->fts_path, in_opts, in_opts_len);
                     if (debug) fprintf(stderr, "debug: plugin_process_file() returned %d\n", result);
                     if (result == -1) {
                         fprintf(stderr, "ERROR: An error occurred while running the plugin\n");
@@ -303,7 +301,7 @@ int main(int argc, char *argv[]) {
                 if (debug) fprintf(stderr, "debug: Ignoring link \"%s\"\n", ent->fts_name);
                 break;
         }
-    }   
+    }
     fts_close(fts_h);
     if (debug) fprintf(stderr, "debug: End debugging.\n");
     return EXIT_SUCCESS;
