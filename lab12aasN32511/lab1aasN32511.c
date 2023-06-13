@@ -68,12 +68,11 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
     FTSENT *entry;
-    char *path;
     size_t filePathsSize = 0;
     char **filePaths = NULL;
     while ((entry = fts_read(ftsp)) != NULL) {
         if (entry->fts_info & FTS_F && strcmp(entry->fts_name + entry->fts_namelen - 3, ".so") == 0) {
-            path = strdup(entry->fts_path);
+            char *path = strdup(entry->fts_path);
             filePathsSize++;
             filePaths = realloc(filePaths, filePathsSize * sizeof(char *));
             if (filePaths == NULL) {
@@ -148,7 +147,7 @@ int main(int argc, char *argv[]) {
         plugins[i].numberOptions = pi.sup_opts_len;
         plugins[i].opts = pi.sup_opts;
     }
-    
+
     // long_opts - массив структур option с опциями из командной строки
     size_t opt_count = 0;
     for (int i = 0; i < pluginsSize; i++) {
@@ -195,6 +194,8 @@ int main(int argc, char *argv[]) {
     }
     free(directory_for_search);
 
+    size_t in_opts_len = 0;
+    struct option *in_opts = NULL;
     // Обход директории
     while (1) {
         errno = 0;
@@ -242,11 +243,10 @@ int main(int argc, char *argv[]) {
                     }
 
                     // in_opts[] - массив структур option, хранящий только те опции из рассматриваемого плагина, которые заданы командной строкой
-                    size_t in_opts_len = plugins[i].numberOptions;
-                    struct option *in_opts;
-                    in_opts = calloc(in_opts_len, sizeof(struct option));
+                    in_opts_len = plugins[i].numberOptions;
+                    in_opts = realloc(in_opts, in_opts_len * sizeof(struct option));
                     if (!in_opts) {
-                        fprintf(stderr, "ERROR: calloc() failed: %s\n", strerror(errno));
+                        fprintf(stderr, "ERROR: realloc() failed: %s\n", strerror(errno));
                         exit(EXIT_FAILURE);
                     }
                     in_opts_len = 0;
@@ -288,7 +288,6 @@ int main(int argc, char *argv[]) {
                     if (suitableOR) fprintf(stderr, "Found a suitable file: %s\n\n", ent->fts_path);
                     else if (debug) fprintf(stderr, "debug: File does not match: %s\n\n", ent->fts_path);
                 }
-                
                 break;
             case FTS_NS:        // Файл, для которого нет доступной информации stat(2). Содержимое поля Fa fts_statp не определено. Это значение возвращается при ошибке, и поле Fa fts_errno будет заполнено тем, что вызвало ошибку
                 fprintf(stderr, "%s: %s\n", ent->fts_name, strerror(ent->fts_errno));
@@ -304,5 +303,18 @@ int main(int argc, char *argv[]) {
     }
     fts_close(fts_h);
     if (debug) fprintf(stderr, "debug: End debugging.\n");
+    if (opt_plug_index) free(opt_plug_index);
+    for (int i = 0; i < in_opts_len; i++) {
+        free((in_opts+i)->flag);
+    }
+    if (in_opts) free(in_opts);
+    if (dirWithPlugins) free(dirWithPlugins);
+    if (plugins) free(plugins);
+    for (int i = 0; i < filePathsSize; i++) {
+        free(filePaths[i]);
+    }
+    if (filePaths) free(filePaths);
+    if (long_opts) free(long_opts);
+    dlclose(dl);
     return EXIT_SUCCESS;
 }
