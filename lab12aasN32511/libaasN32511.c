@@ -142,8 +142,8 @@ char* convertToDecimal(char* debug, char* number) {
         base = 16;
         i = 2;
     } else {
-        if (debug) fprintf(stderr, "debug: The target in decimal notation: %s\n", (char*)number);
-        return (char*)number;
+        base = 10;
+        i = 0;
     }
     
     int len = strlen(number);

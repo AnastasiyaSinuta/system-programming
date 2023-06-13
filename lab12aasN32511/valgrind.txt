@@ -1,25 +1,25 @@
-==37818== Memcheck, a memory error detector
-==37818== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
-==37818== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
-==37818== Command: ./lab1aasN32511 --bit-seq 0b110110100001 ./tests
-==37818== 
+==5224== Memcheck, a memory error detector
+==5224== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==5224== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==5224== Command: ./lab1aasN32511 --bit-seq 0b110110100001 ./tests
+==5224== 
 Found a suitable file: ./tests/folder-test-2/test.txt
 
 Found a suitable file: ./tests/test1.txt
 
-==37818== 
-==37818== HEAP SUMMARY:
-==37818==     in use at exit: 6,433 bytes in 17 blocks
-==37818==   total heap usage: 122 allocs, 105 frees, 352,961 bytes allocated
-==37818== 
-==37818== LEAK SUMMARY:
-==37818==    definitely lost: 0 bytes in 0 blocks
-==37818==    indirectly lost: 0 bytes in 0 blocks
-==37818==      possibly lost: 0 bytes in 0 blocks
-==37818==    still reachable: 6,433 bytes in 17 blocks
-==37818==         suppressed: 0 bytes in 0 blocks
-==37818== Reachable blocks (those to which a pointer was found) are not shown.
-==37818== To see them, rerun with: --leak-check=full --show-leak-kinds=all
-==37818== 
-==37818== For lists of detected and suppressed errors, rerun with: -s
-==37818== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
+==5224== 
+==5224== HEAP SUMMARY:
+==5224==     in use at exit: 3,253 bytes in 8 blocks
+==5224==   total heap usage: 95 allocs, 87 frees, 312,952 bytes allocated
+==5224== 
+==5224== LEAK SUMMARY:
+==5224==    definitely lost: 0 bytes in 0 blocks
+==5224==    indirectly lost: 0 bytes in 0 blocks
+==5224==      possibly lost: 0 bytes in 0 blocks
+==5224==    still reachable: 3,253 bytes in 8 blocks
+==5224==         suppressed: 0 bytes in 0 blocks
+==5224== Reachable blocks (those to which a pointer was found) are not shown.
+==5224== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==5224== 
+==5224== For lists of detected and suppressed errors, rerun with: -s
+==5224== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)

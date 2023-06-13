@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "-v")) {
             fprintf(stderr, "Lab №1.2 - \"Using Dynamic Libraries\"\n");
-            fprintf(stderr, "Version: 1.0\n");
+            fprintf(stderr, "Version: 2.0\n");
             fprintf(stderr, "Autor: Sinuta Anastasiya Anatolevna\n");
             fprintf(stderr, "Group: N32511\n");
             fprintf(stderr, "Variant: 5\n");
@@ -304,9 +304,6 @@ int main(int argc, char *argv[]) {
     fts_close(fts_h);
     if (debug) fprintf(stderr, "debug: End debugging.\n");
     if (opt_plug_index) free(opt_plug_index);
-    for (int i = 0; i < in_opts_len; i++) {
-        free((in_opts+i)->flag);
-    }
     if (in_opts) free(in_opts);
     if (dirWithPlugins) free(dirWithPlugins);
     if (plugins) free(plugins);
