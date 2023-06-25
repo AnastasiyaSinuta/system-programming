@@ -9,13 +9,13 @@
 #include <string.h>
 #include <math.h>
 
-#define CHECK_RESULT(res, msg)  \
-    do {                        \
-        if (res < 0) {          \
-            perror(msg);        \
-            exit(EXIT_FAILURE); \
-        }                       \
-    } while (0)
+#define CHECK_RESULT(res, msg)          \
+do {                                    \
+    if (res < 0) {                      \
+        perror(msg);                    \
+        exit(EXIT_FAILURE);             \
+    }                                   \
+} while (0)
 
 #define BUF_SIZE 1024
 
