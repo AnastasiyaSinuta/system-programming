@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -23,61 +24,104 @@ do {                                    \
 int convertValueComponent(char *);
 char *convertColorSpace(char *);
 
+void writeLog(FILE *file, const char *format, ...) { 
+    time_t rawtime; 
+    struct tm *timeinfo; 
+    char timestamp[20]; 
+ 
+    // Получение текущего времени 
+    time(&rawtime); 
+    timeinfo = localtime(&rawtime); 
+    strftime(timestamp, sizeof(timestamp), "%d.%m.%y %H:%M:%S", timeinfo); 
+ 
+    // Запись данных в файл с временной меткой и значениями 
+    fprintf(file, "[%s] ", timestamp); 
+ 
+    va_list args; 
+    va_start(args, format); 
+    vfprintf(file, format, args); 
+    va_end(args); 
+ 
+    fprintf(file, "\n");
+}
+
 int main(int argc, char *argv[]) {
-    char* LAB2WAIT = getenv("LAB2WAIT");
+    char *LAB2WAIT = getenv("LAB2WAIT");
     int delay = 0;
-    // char* LAB2LOGFILE = getenv("LAB2LOGFILE");
+    char *LAB2LOGFILE = getenv("LAB2LOGFILE");
+    char *pathToLog = "./tmp/lab2.log";
+    if (LAB2LOGFILE) {
+        for (int i = 1; i < argc; i++) {
+            if (!strcmp(argv[i], "-l")) {
+                if (i == argc-1) {
+                    fprintf(stderr, "ERROR: The -l option needs an argument.\n");
+                    exit(EXIT_FAILURE);
+                } else {
+                    pathToLog = argv[i+1];
+                    break;
+                }
+            }
+        }
+    }
+    FILE *logfile = fopen(pathToLog, "w");
+    if (logfile == NULL) {
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
     // char* LAB2ADDR = getenv("LAB2ADDR");
     // char* LAB2PORT = getenv("LAB2PORT");
     char *LAB2DEBUG = getenv("LAB2DEBUG");
-    if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: Debug mode enabled.\n");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Mode enabled.");
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-v")) {
-            if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: --Version option called.\n");
-            fprintf(stderr, "Lab №2 - \"Processes, threads, and interprocess communication\"\n");
-            fprintf(stderr, "Version: 1.0\n");
-            fprintf(stderr, "Autor: Sinuta Anastasiya Anatolevna\n");
-            fprintf(stderr, "Group: N32511\n");
-            fprintf(stderr, "Variant: 25\n");
-            if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: End debugging.\n");
+            if (LAB2DEBUG) writeLog(logfile, "DEBUG: --Version option called.");
+            fprintf(stdout, "Lab №2 - \"Processes, threads, and interprocess communication\"\n");
+            fprintf(stdout, "Version: 1.0\n");
+            fprintf(stdout, "Autor: Sinuta Anastasiya Anatolevna\n");
+            fprintf(stdout, "Group: N32511\n");
+            fprintf(stdout, "Variant: 25\n");
+            if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
             exit(EXIT_SUCCESS);
         } else if (!strcmp(argv[i], "-h")) {
-            if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: --Help option called.\n");
-            fprintf(stderr, "Usage: %s [options]\n", argv[0]);
-            fprintf(stderr, "Options:\n");
-            fprintf(stderr, "-w N (LAB2WAIT) Imitation of work by suspension serving the request process/thread per N seconds. If the option is not given, serve the request without delay (Default: 0).\n");
-            fprintf(stderr, "-d Working in daemon mode.\n");
-            fprintf(stderr, "-l /path/to/log (LAB2LOGFILE) Path to the log file (Default: /tmp/lab2.log).\n");
-            fprintf(stderr, "-a ip (LAB2ADDR) Listening address server and to which client connects.\n");
-            fprintf(stderr, "-p port (LAB2PORT) Port on which it listens server and to which client connects.\n");
-            fprintf(stderr, "-v Displaying the program version.\n");
-            fprintf(stderr, "-h Display help for options.\n");
-            if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: End debugging.\n");
+            if (LAB2DEBUG) writeLog(logfile, "DEBUG: --Help option called.");
+            fprintf(stdout, "Usage: %s [options]\n", argv[0]);
+            fprintf(stdout, "Options:\n");
+            fprintf(stdout, "-w N (LAB2WAIT) Imitation of work by suspension serving the request process/thread per N seconds. If the option is not given, serve the request without delay (Default: 0).\n");
+            fprintf(stdout, "-d Working in daemon mode.\n");
+            fprintf(stdout, "-l /path/to/log (LAB2LOGFILE) Path to the log file (Default: /tmp/lab2.log).\n");
+            fprintf(stdout, "-a ip (LAB2ADDR) Listening address server and to which client connects.\n");
+            fprintf(stdout, "-p port (LAB2PORT) Port on which it listens server and to which client connects.\n");
+            fprintf(stdout, "-v Displaying the program version.\n");
+            fprintf(stdout, "-h Display help for options.\n");
+            if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
             exit(EXIT_SUCCESS);
         } else if (!strcmp(argv[i], "-w")) {
             if (LAB2WAIT) {
-                if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: LAB2WAIT environment variable enabled.\n");
+                if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2WAIT environment variable enabled.");
                 if (i != argc - 1) {
                     delay = atoi(argv[i+1]);
-                    if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: %d second delay included.\n", delay);
+                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: %d second delay included.", delay);
                     i++;
                 } else {
-                    fprintf(stderr, "ERROR: The -w option needs an argument.\n");
+                    writeLog(logfile, "ERROR: The -w option needs an argument.");
+                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: mode enabled.");
                     exit(EXIT_FAILURE);
                 }
             } else {
-                fprintf(stderr, "ERROR: To work with the -w option, enable the LAB2WAIT environment variable.\n");
+                writeLog(logfile, "ERROR: To work with the -w option, enable the LAB2WAIT environment variable.");
+                if (LAB2DEBUG) writeLog(logfile, "DEBUG: mode enabled.");
                 exit(EXIT_FAILURE);
             }
         } else if (!strcmp(argv[i], "-d")) {
-            //-d Working in daemon mode.
+            if (LAB2DEBUG) writeLog(logfile, "DEBUG: Server part working in daemon mode.");
             pid_t pid, sid;
             // Создание дочернего процесса
             pid = fork();
             // Если не удалось создать дочерний процесс, завершаем программу
             if (pid < 0) {
-                perror("fork");
+                writeLog(logfile, "ERROR: fork.");
+                if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
                 exit(EXIT_FAILURE);
             }
             // Если процесс создан успешно, завершаем родительский процесс
@@ -89,7 +133,8 @@ int main(int argc, char *argv[]) {
             // Создание новой сессии
             sid = setsid();
             if (sid < 0) {
-                perror("setsid");
+                writeLog(logfile, "ERROR: setsid.");
+                if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
                 exit(EXIT_FAILURE);
             }
             // Закрытие стандартных файловых дескрипторов
@@ -97,13 +142,21 @@ int main(int argc, char *argv[]) {
             close(STDOUT_FILENO);
             close(STDERR_FILENO);
         } else if (!strcmp(argv[i], "-l")) {
-            //-l /path/to/log (LAB2LOGFILE) Path to the log file (Default: /tmp/lab2.log).
+            if (LAB2LOGFILE) {
+                if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2LOGFILE environment variable enabled.");
+                i++;
+            } else {
+                writeLog(logfile, "ERROR: To work with the -l option, enable the LAB2LOGFILE environment variable.");
+                if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
+                exit(EXIT_FAILURE);
+            }
         } else if (!strcmp(argv[i], "-a")) {
             //-a ip (LAB2ADDR) Listening address server and to which client connects.
         } else if (!strcmp(argv[i], "-p")) {
             //-p port (LAB2PORT) Port on which it listens server and to which client connects.
         } else {
-            fprintf(stderr, "ERROR: Unknown option %s\n", argv[i]);
+            writeLog(logfile, "ERROR: Unknown option %s", argv[i]);
+            if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
             exit(EXIT_FAILURE);
         }
     }
@@ -118,7 +171,7 @@ int main(int argc, char *argv[]) {
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     CHECK_RESULT(serverSocket, "socket");
 
-    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_family = AF_INET; // IPv4
     serverAddr.sin_port = htons(5555);
     serverAddr.sin_addr.s_addr = INADDR_ANY; // inet_addr("127.0.0.1");
 
@@ -131,27 +184,20 @@ int main(int argc, char *argv[]) {
     addr_size = sizeof(serverStorage);
     clientSocket = accept(serverSocket, (struct sockaddr *)&serverStorage, &addr_size);
     CHECK_RESULT(clientSocket, "accept");
-
-    while (1) {
+    int request = 0;
+    while (request<4) {
         res = read(clientSocket, buffer, sizeof(buffer));
         CHECK_RESULT(res, "read");
-
-        if (LAB2WAIT) {
-            char msg_delay[BUF_SIZE];
-            sprintf(msg_delay, "Delay for %d seconds.", delay);
-            res = write(clientSocket, msg_delay, strlen(msg_delay) + 1);
-            sleep(delay);
-        }
-
+        if (LAB2WAIT) sleep(delay);
         char *reply = convertColorSpace(buffer);
         res = write(clientSocket, reply, strlen(reply) + 1);
         CHECK_RESULT(res, "write");
+        request++;
     }
-
-    fputs("\n", stdout);
     close(clientSocket);
     close(serverSocket);
-    if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: End debugging.\n");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
+    fclose(logfile);
     exit(EXIT_SUCCESS);
 }
 
