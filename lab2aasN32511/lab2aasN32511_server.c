@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     char *LAB2DEBUG = getenv("LAB2DEBUG");
     if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: Debug mode enabled.\n");
 
-    for (int i = 0; i < argc; i++) {
+    for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-v")) {
             if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: --Version option called.\n");
             fprintf(stderr, "Lab №2 - \"Processes, threads, and interprocess communication\"\n");
@@ -41,12 +41,11 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Variant: 25\n");
             if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: End debugging.\n");
             exit(EXIT_SUCCESS);
-        }
-        if (!strcmp(argv[i], "-h")) {
+        } else if (!strcmp(argv[i], "-h")) {
             if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: --Help option called.\n");
             fprintf(stderr, "Usage: %s [options]\n", argv[0]);
             fprintf(stderr, "Options:\n");
-            fprintf(stderr, "-w N (LAB2WAIT) Imitation of work by suspension 0 Server serving the request process/thread per N seconds. If the option is not given, serve the request without delay (Default: 0).\n");
+            fprintf(stderr, "-w N (LAB2WAIT) Imitation of work by suspension serving the request process/thread per N seconds. If the option is not given, serve the request without delay (Default: 0).\n");
             fprintf(stderr, "-d Working in daemon mode.\n");
             fprintf(stderr, "-l /path/to/log (LAB2LOGFILE) Path to the log file (Default: /tmp/lab2.log).\n");
             fprintf(stderr, "-a ip (LAB2ADDR) Listening address server and to which client connects.\n");
@@ -55,18 +54,33 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "-h Display help for options.\n");
             if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: End debugging.\n");
             exit(EXIT_SUCCESS);
-        }
-        if (LAB2WAIT) {
-            if (!strcmp(argv[i], "w")) {
+        } else if (!strcmp(argv[i], "-w")) {
+            if (LAB2WAIT) {
+                if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: LAB2WAIT environment variable enabled.\n");
                 if (i != argc - 1) {
                     delay = atoi(argv[i+1]);
+                    if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: %d second delay included.\n", delay);
+                    i++;
                 } else {
-                    fprintf(stderr, "The -w option needs an argument\n");
+                    fprintf(stderr, "ERROR: The -w option needs an argument.\n");
                     exit(EXIT_FAILURE);
                 }
+            } else {
+                fprintf(stderr, "ERROR: To work with the -w option, enable the LAB2WAIT environment variable.\n");
+                exit(EXIT_FAILURE);
             }
+        } else if (!strcmp(argv[i], "-d")) {
+            //-d Working in daemon mode.
+        } else if (!strcmp(argv[i], "-l")) {
+            //-l /path/to/log (LAB2LOGFILE) Path to the log file (Default: /tmp/lab2.log).
+        } else if (!strcmp(argv[i], "-a")) {
+            //-a ip (LAB2ADDR) Listening address server and to which client connects.
+        } else if (!strcmp(argv[i], "-p")) {
+            //-p port (LAB2PORT) Port on which it listens server and to which client connects.
+        } else {
+            fprintf(stderr, "ERROR: Unknown option %s\n", argv[i]);
+            exit(EXIT_FAILURE);
         }
-
     }
 
     int serverSocket, clientSocket;
@@ -94,9 +108,15 @@ int main(int argc, char *argv[]) {
     CHECK_RESULT(clientSocket, "accept");
 
     while (1) {
-        sleep(delay);
         res = read(clientSocket, buffer, sizeof(buffer));
         CHECK_RESULT(res, "read");
+
+        if (LAB2WAIT) {
+            char msg_delay[BUF_SIZE];
+            sprintf(msg_delay, "Delay for %d seconds.", delay);
+            res = write(clientSocket, msg_delay, strlen(msg_delay) + 1);
+            sleep(delay);
+        }
 
         char *reply = convertColorSpace(buffer);
         res = write(clientSocket, reply, strlen(reply) + 1);
@@ -106,8 +126,7 @@ int main(int argc, char *argv[]) {
     fputs("\n", stdout);
     close(clientSocket);
     close(serverSocket);
-
-    return 0;
+    exit(EXIT_SUCCESS);
 }
 
 char *convertColorSpace(char *request) {

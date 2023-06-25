@@ -77,9 +77,11 @@ int main(int argc, char *argv[]) {
         res = read(clientSocket, buffer, BUF_SIZE);
         CHECK_RESULT(res, "read");
         printf("Server: %s\n", buffer);
-    }
 
+        res = read(clientSocket, buffer, BUF_SIZE);
+        CHECK_RESULT(res, "read");
+        printf("Server: %s\n", buffer);
+    }
     close(clientSocket);
-	
-	return 0;
+	exit(EXIT_SUCCESS);
 }
