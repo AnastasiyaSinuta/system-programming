@@ -1,11 +1,12 @@
 CFLAGS=-O3 -Wall -Wextra -Werror
+TARGET=lab2aasN32511_server lab2aasN32511_client
 
 ./PHONY: all
 
-all: lab2aasN32511_server lab2aasN32511_client
+all: $(TARGET)
 
 clean: 
-	@rm -rf *.o lab2aasN32511_server lab2aasN32511_client
+	@rm -rf *.o $(TARGET)
 
 lab2aasN32511_server: lab2aasN32511_server.c
 	gcc $(CFLAGS) -o lab2aasN32511_server lab2aasN32511_server.c

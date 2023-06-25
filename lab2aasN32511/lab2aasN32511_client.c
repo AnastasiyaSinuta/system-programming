@@ -1,6 +1,25 @@
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <time.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+
+#define CHECK_RESULT(res, msg)			\
+do {									\
+	if (res < 0) {						\
+		perror(msg);					\
+		exit(EXIT_FAILURE);				\
+	}									\
+} while (0)
+
+#define BUF_SIZE		1024
+#define MAX_DELAY		2
+
+void	random_delay(int);
 
 int main(int argc, char *argv[]) {
     //char* LAB2PORT = getenv("LAB2PORT");
@@ -30,5 +49,47 @@ int main(int argc, char *argv[]) {
             exit(EXIT_SUCCESS);
         }
     }
-    return EXIT_SUCCESS;
+    
+    int clientSocket;
+	char buffer[BUF_SIZE] = {0};
+	struct sockaddr_in serverAddr = {0};
+
+	srand(time(NULL));
+	
+	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+	CHECK_RESULT(clientSocket, "socket");
+
+    serverAddr.sin_family = AF_INET;
+	serverAddr.sin_port = htons(5555);
+	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+	int res = connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
+	CHECK_RESULT(res, "connect");
+
+    while (1) {
+        printf("Server: Enter string please!\n");
+        printf("Client: ");
+        char reply[BUF_SIZE];
+        if (!fgets(reply, BUF_SIZE, stdin))
+        {
+            printf("ERROR fgets\n");
+            exit(1);
+        }
+        res = write(clientSocket, reply, strlen(reply) + 1);
+        CHECK_RESULT(res, "write");
+
+        res = read(clientSocket, buffer, BUF_SIZE);
+        CHECK_RESULT(res, "read");
+        printf("Server: %s\n", buffer);
+
+        random_delay(MAX_DELAY);
+    }
+
+    close(clientSocket);
+	
+	return 0;
+}
+
+void random_delay(int delay) {
+	sleep(1 + rand() % delay);
 }

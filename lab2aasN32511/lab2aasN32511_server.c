@@ -1,6 +1,24 @@
-#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <time.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+
+#define CHECK_RESULT(res, msg)			\
+do {									\
+	if (res < 0) {						\
+		perror(msg);					\
+		exit(EXIT_FAILURE);				\
+	}									\
+} while (0)
+
+#define BUF_SIZE		1024
+
+char*   coverter(char*);
 
 int main(int argc, char *argv[]) {
     //char* LAB2WAIT = getenv("LAB2WAIT");
@@ -36,6 +54,49 @@ int main(int argc, char *argv[]) {
             exit(EXIT_SUCCESS);
         }
     }
+    
+    int serverSocket, clientSocket;
+	char buffer[BUF_SIZE];
+	struct sockaddr_in serverAddr = {0};
+	struct sockaddr_storage serverStorage;
+	socklen_t addr_size;
+	int res;
+	
+	serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+	CHECK_RESULT(serverSocket, "socket");
 
-    return EXIT_SUCCESS;
+	serverAddr.sin_family = AF_INET;
+	serverAddr.sin_port = htons(5555);
+	serverAddr.sin_addr.s_addr = INADDR_ANY; //inet_addr("127.0.0.1");
+
+	res = bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
+	CHECK_RESULT(res, "bind");
+
+	res = listen(serverSocket, 5);
+	CHECK_RESULT(res, "listen");
+
+    addr_size = sizeof(serverStorage);
+	clientSocket = accept(serverSocket, (struct sockaddr *)&serverStorage, &addr_size);
+	CHECK_RESULT(clientSocket, "accept");
+
+    while (1) {
+        res = read(clientSocket, buffer, sizeof(buffer));
+        CHECK_RESULT(res, "read");
+
+        char *reply = coverter(buffer);
+        res = write(clientSocket, reply, strlen(reply) + 1);
+        CHECK_RESULT(res, "write");
+
+        fputs(".", stdout); fflush(stdout);
+    }
+    
+	fputs("\n", stdout);	
+	close(clientSocket);
+	close(serverSocket);
+
+	return 0;
+}
+
+char* coverter(char *str) {
+    return str;
 }
