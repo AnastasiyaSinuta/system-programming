@@ -67,11 +67,9 @@ int main(int argc, char *argv[]) {
 	CHECK_RESULT(res, "connect");
 
     while (1) {
-        printf("Server: Enter string please!\n");
         printf("Client: ");
         char reply[BUF_SIZE];
-        if (!fgets(reply, BUF_SIZE, stdin))
-        {
+        if (fgets(reply, BUF_SIZE, stdin) == NULL) {
             printf("ERROR fgets\n");
             exit(1);
         }
