@@ -1,13 +1,14 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
-#include <time.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <math.h>
+#include <time.h>
 
 #define CHECK_RESULT(res, msg)          \
 do {                                    \
@@ -71,6 +72,30 @@ int main(int argc, char *argv[]) {
             }
         } else if (!strcmp(argv[i], "-d")) {
             //-d Working in daemon mode.
+            pid_t pid, sid;
+            // Создание дочернего процесса
+            pid = fork();
+            // Если не удалось создать дочерний процесс, завершаем программу
+            if (pid < 0) {
+                perror("fork");
+                exit(EXIT_FAILURE);
+            }
+            // Если процесс создан успешно, завершаем родительский процесс
+            if (pid > 0) {
+                exit(EXIT_SUCCESS);
+            }
+            // Изменение файловой маски для создания файлов с нужными правами
+            umask(0);
+            // Создание новой сессии
+            sid = setsid();
+            if (sid < 0) {
+                perror("setsid");
+                exit(EXIT_FAILURE);
+            }
+            // Закрытие стандартных файловых дескрипторов
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
         } else if (!strcmp(argv[i], "-l")) {
             //-l /path/to/log (LAB2LOGFILE) Path to the log file (Default: /tmp/lab2.log).
         } else if (!strcmp(argv[i], "-a")) {
@@ -126,6 +151,7 @@ int main(int argc, char *argv[]) {
     fputs("\n", stdout);
     close(clientSocket);
     close(serverSocket);
+    if (LAB2DEBUG) fprintf(stderr, "LAB2DEBUG: End debugging.\n");
     exit(EXIT_SUCCESS);
 }
 
