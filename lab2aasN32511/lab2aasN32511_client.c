@@ -19,8 +19,6 @@ do {									\
 #define BUF_SIZE		1024
 #define MAX_DELAY		2
 
-void	random_delay(int);
-
 int main(int argc, char *argv[]) {
     //char* LAB2PORT = getenv("LAB2PORT");
     char* LAB2DEBUG = getenv("LAB2DEBUG");
@@ -79,15 +77,9 @@ int main(int argc, char *argv[]) {
         res = read(clientSocket, buffer, BUF_SIZE);
         CHECK_RESULT(res, "read");
         printf("Server: %s\n", buffer);
-
-        random_delay(MAX_DELAY);
     }
 
     close(clientSocket);
 	
 	return 0;
-}
-
-void random_delay(int delay) {
-	sleep(1 + rand() % delay);
 }
