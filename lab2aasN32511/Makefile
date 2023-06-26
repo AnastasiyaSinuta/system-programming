@@ -9,6 +9,6 @@ clean:
 	@rm -rf *.o $(TARGET)
 
 server: lab2aasN32511_server.c
-	gcc $(CFLAGS) -o server lab2aasN32511_server.c -lm
+	gcc $(CFLAGS) -o server lab2aasN32511_server.c -lm -pthread
 client: lab2aasN32511_client.c
 	gcc $(CFLAGS) -o client lab2aasN32511_client.c
