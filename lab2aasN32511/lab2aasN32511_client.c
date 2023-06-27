@@ -1,23 +1,20 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-#include <time.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <signal.h>
 
 #define CHECK_RESULT(res, msg)          \
 do {                                    \
     if (res < 0) {                      \
         perror(msg);                    \
-        exit(EXIT_FAILURE);             \
+        goto END;                       \
     }                                   \
 } while (0)
 
-#define BUF_SIZE    1024
+#define BUF_SIZE 1024
 
 int main(int argc, char *argv[]) {
     char *LAB2ADDR = getenv("LAB2ADDR");
@@ -52,7 +49,6 @@ int main(int argc, char *argv[]) {
                 if (LAB2DEBUG) fprintf(stdout, "DEBUG: LAB2ADDR environment variable enabled.\n");
                 if (i != argc-1) {
                     address_ip = argv[i+1];
-                    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Address to which client connects: %s.\n", address_ip);
                     i++;
                 } else {
                     fprintf(stdout, "ERROR: The -a option needs an argument.\n");
@@ -69,7 +65,6 @@ int main(int argc, char *argv[]) {
                 if (LAB2DEBUG) fprintf(stdout, "DEBUG: LAB2PORT environment variable enabled.\n");
                 if (i != argc-1) {
                     port = atoi(argv[i+1]);
-                    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Port to which client connects: %d.\n", port);
                     i++;
                 } else {
                     fprintf(stdout, "ERROR: The -p option needs an argument.\n");
@@ -88,38 +83,39 @@ int main(int argc, char *argv[]) {
     }
     
     int clientSocket;
-	char buffer[BUF_SIZE] = {0};
-	struct sockaddr_in serverAddr = {0};
-	
-	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-	CHECK_RESULT(clientSocket, "socket");
+    char buffer[BUF_SIZE] = {0};
+    struct sockaddr_in serverAddr = {0};
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(5555);
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    if (port != 0) {
-        serverAddr.sin_port = htons(port);
-    }
-    if (address_ip != NULL) {
-        serverAddr.sin_addr.s_addr = inet_addr(address_ip);
-    }
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    CHECK_RESULT(clientSocket, "socket");
 
-	int res = connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
-	CHECK_RESULT(res, "connect");
-	
-	printf("Client: ");
+    serverAddr.sin_family = AF_INET; // IPv4
+    
+    if (port != 0) { serverAddr.sin_port = htons(port); }
+    else serverAddr.sin_port = htons(5555);
+    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Port to which client connects: %d\n", serverAddr.sin_port);
+
+    if (address_ip != NULL) { serverAddr.sin_addr.s_addr = inet_addr(address_ip); }
+    else serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Address to which client connects: %s\n", inet_ntoa(serverAddr.sin_addr));
+
+    int res = connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
+    CHECK_RESULT(res, "connect");
+
+    printf("Client: ");
     char reply[BUF_SIZE];
-    if (fgets(reply, BUF_SIZE, stdin) == NULL) {
-        printf("ERROR fgets\n");
-        exit(1);
+    if (!fgets(reply, BUF_SIZE, stdin)) {
+        perror("fgets");
+        goto END;
     }
-    res = write(clientSocket, reply, strlen(reply) + 1);
+    res = write(clientSocket, reply, strlen(reply)+1);
     CHECK_RESULT(res, "write");
 
     res = read(clientSocket, buffer, BUF_SIZE);
     CHECK_RESULT(res, "read");
     printf("Server: %s\n", buffer);
 
+    END:
     close(clientSocket);
     if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
     exit(EXIT_SUCCESS);

@@ -13,12 +13,35 @@
 #include <signal.h>
 #include <pthread.h>
 
-#define CHECK_RESULT(res, msg)          \
-do {                                    \
-    if (res < 0) {                      \
-        perror(msg);                    \
-        exit(EXIT_FAILURE);             \
-    }                                   \
+void writeLog(FILE *file, const char *format, ...) {
+    time_t rawtime;
+    struct tm *timeinfo;
+    char timestamp[20];
+
+    // Получение текущего времени
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    strftime(timestamp, sizeof(timestamp), "%d.%m.%y %H:%M:%S", timeinfo);
+
+    // Запись данных в файл с временной меткой и значениями
+    fprintf(file, "[%s] ", timestamp);
+
+    va_list args;
+    va_start(args, format);
+    vfprintf(file, format, args);
+    va_end(args);
+
+    fprintf(file, "\n");
+}
+
+FILE * logfile;
+#define CHECK_RESULT(res, msg)                  \
+do {                                            \
+    if (res < 0) {                              \
+        writeLog(logfile, "ERROR: %s", msg);    \
+        perror(msg);                            \
+        exit(EXIT_FAILURE);                     \
+    }                                           \
 } while (0)
 
 #define BUF_SIZE 1024
@@ -26,38 +49,58 @@ do {                                    \
 int convertValueComponent(char *);
 char *convertColorSpace(char *);
 
-void writeLog(FILE *file, const char *format, ...) { 
-    time_t rawtime; 
-    struct tm *timeinfo; 
-    char timestamp[20]; 
- 
-    // Получение текущего времени 
-    time(&rawtime); 
-    timeinfo = localtime(&rawtime); 
-    strftime(timestamp, sizeof(timestamp), "%d.%m.%y %H:%M:%S", timeinfo); 
- 
-    // Запись данных в файл с временной меткой и значениями 
-    fprintf(file, "[%s] ", timestamp); 
- 
-    va_list args; 
-    va_start(args, format); 
-    vfprintf(file, format, args); 
-    va_end(args); 
- 
-    fprintf(file, "\n");
+int running = 1;
+int success_requests = 0;
+int error_requests = 0;
+time_t start_time;
+
+void handle_sigint(int sig __attribute__((unused))) {
+    writeLog(logfile, "Received SIGINT. Terminating...");
+    running = 0;
 }
-FILE *logfile;
+
+void handle_sigterm(int sig __attribute__((unused))) {
+    writeLog(logfile, "Received SIGTERM. Terminating...");
+    running = 0;
+}
+
+void handle_sigquit(int sig __attribute__((unused))) {
+    writeLog(logfile, "Received SIGQUIT. Terminating...");
+    running = 0;
+}
+
+void handle_sigusr1(int sig __attribute__((unused))) {
+    time_t current_time = time(NULL);
+    double uptime = difftime(current_time, start_time);
+    writeLog(logfile, "Received SIGUSR1. Statistics:");
+    writeLog(logfile, "Uptime: %.2f seconds", uptime);
+    writeLog(logfile, "Successful requests: %d", success_requests);
+    writeLog(logfile, "Error requests: %d", error_requests);
+}
+
 void* client_handler(void* arg) {
+    writeLog(logfile, "Start request %d", success_requests+error_requests+1);
     int clientSocket = *((int*)arg);
-    char buffer[BUF_SIZE];
-    if (read(clientSocket, buffer, BUF_SIZE) <= 0) goto end;
-    fprintf(stdout, "Client: %s", buffer);
+    char *buffer = malloc(BUF_SIZE);
+    if (read(clientSocket, buffer, BUF_SIZE) <= 0) {
+        error_requests++;
+        goto end;
+    }
+    writeLog(logfile, "Client: %s", buffer);
     char *reply = convertColorSpace(buffer);
-    fprintf(stdout, "Server: %s\n", reply);
-    if (write(clientSocket, reply, strlen(reply)) < 0) goto end;
+    if (strstr(reply, "ERROR")) {
+        error_requests++;
+    } else success_requests++;
+    writeLog(logfile, "Server: %s", reply);
+    if (write(clientSocket, reply, strlen(reply)) < 0) {
+        error_requests++;
+        goto end;
+    }
+    writeLog(logfile, "End request %d\n", success_requests+error_requests);
     end:
     close(clientSocket);
     free(arg);
+    free(buffer);
     pthread_exit(NULL);
 }
 
@@ -173,7 +216,6 @@ int main(int argc, char *argv[]) {
                 if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2ADDR environment variable enabled.");
                 if (i != argc-1) {
                     address_ip = strdup(argv[i+1]);
-                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Listening address server: %s.", address_ip);
                     i++;
                 } else {
                     writeLog(logfile, "ERROR: The -a option needs an argument.");
@@ -190,7 +232,6 @@ int main(int argc, char *argv[]) {
                 if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2PORT environment variable enabled.");
                 if (i != argc-1) {
                     port = atoi(argv[i+1]);
-                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Port on which it listens server: %d.", port);
                     i++;
                 } else {
                     writeLog(logfile, "ERROR: The -p option needs an argument.");
@@ -210,7 +251,6 @@ int main(int argc, char *argv[]) {
     }
     
     int serverSocket, clientSocket;
-    //char buffer[BUF_SIZE];
     struct sockaddr_in serverAddr = {0};
     struct sockaddr_storage serverStorage;
     socklen_t addr_size;
@@ -220,45 +260,43 @@ int main(int argc, char *argv[]) {
     CHECK_RESULT(serverSocket, "socket");
 
     serverAddr.sin_family = AF_INET; // IPv4
-    serverAddr.sin_port = htons(5555);
-    serverAddr.sin_addr.s_addr = INADDR_ANY; // inet_addr("127.0.0.1");
-    if (port != 0) {
-        serverAddr.sin_port = htons(port);
-    }
-    if (address_ip != NULL) {
-        serverAddr.sin_addr.s_addr = inet_addr(address_ip);
-    }
+    
+    if (port != 0) { serverAddr.sin_port = htons(port); }
+    else serverAddr.sin_port = htons(5555);
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Port on which it listens server: %d", serverAddr.sin_port);
+
+    if (address_ip != NULL) { serverAddr.sin_addr.s_addr = inet_addr(address_ip); }
+    else serverAddr.sin_addr.s_addr = INADDR_ANY; // inet_addr("127.0.0.1");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Listening address server: %s", inet_ntoa(serverAddr.sin_addr));
 
     res = bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
     CHECK_RESULT(res, "bind");
-
-    res = listen(serverSocket, 5);
-    CHECK_RESULT(res, "listen");
-
-    addr_size = sizeof(serverStorage);
     
-    while (1) {
+    // Set up signal handlers 
+    signal(SIGINT, handle_sigint); 
+    signal(SIGTERM, handle_sigterm); 
+    signal(SIGQUIT, handle_sigquit);
+    signal(SIGUSR1, handle_sigusr1);
+
+    start_time = time(NULL); 
+
+    while (running) {
+        res = listen(serverSocket, 5);
+        CHECK_RESULT(res, "listen");
+        addr_size = sizeof(serverStorage);
         clientSocket = accept(serverSocket, (struct sockaddr *)&serverStorage, &addr_size);
         CHECK_RESULT(clientSocket, "accept");
         if (LAB2WAIT) sleep(delay);
         pthread_t thread;
         int* new_sock = malloc(sizeof(int));
         *new_sock = clientSocket;
-        if (pthread_create(&thread, NULL, client_handler, (void*)new_sock) != 0) {
+        if (pthread_create(&thread, NULL, client_handler, (void*)new_sock)) {
             perror("Error creating thread");
             exit(EXIT_FAILURE);
         }
         pthread_detach(thread);
     }
-    
-    // res = read(clientSocket, buffer, sizeof(buffer));
-    // CHECK_RESULT(res, "read");
-    // if (LAB2WAIT) sleep(delay);
-    // char *reply = convertColorSpace(buffer);
-    // res = write(clientSocket, reply, strlen(reply) + 1);
-    // CHECK_RESULT(res, "write");
 
-    close(clientSocket);
     close(serverSocket);
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
     fclose(logfile);
