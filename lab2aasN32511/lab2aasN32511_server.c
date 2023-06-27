@@ -336,7 +336,7 @@ char *convertColorSpace(char *request) {
         return result;
     }
     // Выполняем преобразование цветовых пространств
-    if (!strcmp(space, "RGB")) {
+    if (!strcmp(space, "RGB") || !strcmp(space, "rgb")) {
         double r = comp1;
         double g = comp2;
         double b = comp3;
@@ -374,7 +374,7 @@ char *convertColorSpace(char *request) {
         char answer[BUF_SIZE];
         sprintf(answer, "HSL %.2f %.2f %.2f", h, s, l);
         result = strdup(answer);
-    } else if (!strcmp(space, "HSL")) {
+    } else if (!strcmp(space, "HSL") || !strcmp(space, "hsl")) {
         double h = comp1;
         double s = comp2 / 100.0;
         double l = comp3 / 100.0;

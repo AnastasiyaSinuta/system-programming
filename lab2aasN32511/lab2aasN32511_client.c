@@ -103,19 +103,22 @@ int main(int argc, char *argv[]) {
     CHECK_RESULT(res, "connect");
 
     printf("Client: ");
-    char reply[BUF_SIZE];
-    if (!fgets(reply, BUF_SIZE, stdin)) {
-        perror("ERROR: fgets:");
-        goto END;
+    char *reply = NULL;
+    size_t reply_size = 0;
+    ssize_t length;
+    length = getline(&reply, &reply_size, stdin);
+    if (length > 0 && reply[length - 1] == '\n') { 
+        reply[length - 1] = '\0'; 
+        length--; 
     }
-    res = write(clientSocket, reply, strlen(reply)-2);
+    res = write(clientSocket, reply, BUF_SIZE);
     CHECK_RESULT(res, "write");
+    free(reply);
 
     res = read(clientSocket, buffer, BUF_SIZE);
     CHECK_RESULT(res, "read");
     printf("Server: %s\n", buffer);
 
-    END:
     close(clientSocket);
     if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
     exit(EXIT_SUCCESS);
