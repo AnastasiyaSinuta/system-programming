@@ -5,23 +5,23 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
 
-#define CHECK_RESULT(res, msg)          \
-do {                                    \
-    if (res < 0) {                      \
-        perror(msg);                    \
-        goto END;                       \
-    }                                   \
-} while (0)
-
+char *LAB2DEBUG;
+void CHECK_RESULT(int res, char *msg) {
+    if (res < 0) {
+        fprintf(stderr, "ERROR: %s: %s.\n", msg, strerror(errno));
+        if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
+        exit(EXIT_FAILURE);
+    }
+}
 #define BUF_SIZE 1024
-
 int main(int argc, char *argv[]) {
     char *LAB2ADDR = getenv("LAB2ADDR");
     char *address_ip = NULL;
     char *LAB2PORT = getenv("LAB2PORT");
     int port = 0;
-    char* LAB2DEBUG = getenv("LAB2DEBUG");
+    LAB2DEBUG = getenv("LAB2DEBUG");
     if (LAB2DEBUG) fprintf(stdout, "DEBUG: Start debugging.\n");
 
     for (int i = 1; i < argc; i++) {
@@ -105,10 +105,10 @@ int main(int argc, char *argv[]) {
     printf("Client: ");
     char reply[BUF_SIZE];
     if (!fgets(reply, BUF_SIZE, stdin)) {
-        perror("fgets");
+        perror("ERROR: fgets:");
         goto END;
     }
-    res = write(clientSocket, reply, strlen(reply)+1);
+    res = write(clientSocket, reply, strlen(reply)-2);
     CHECK_RESULT(res, "write");
 
     res = read(clientSocket, buffer, BUF_SIZE);

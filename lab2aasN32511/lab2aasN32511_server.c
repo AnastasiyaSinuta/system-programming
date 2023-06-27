@@ -12,6 +12,7 @@
 #include <time.h>
 #include <signal.h>
 #include <pthread.h>
+#include <errno.h>
 
 void writeLog(FILE *file, const char *format, ...) {
     time_t rawtime;
@@ -35,14 +36,14 @@ void writeLog(FILE *file, const char *format, ...) {
 }
 
 FILE * logfile;
-#define CHECK_RESULT(res, msg)                  \
-do {                                            \
-    if (res < 0) {                              \
-        writeLog(logfile, "ERROR: %s", msg);    \
-        perror(msg);                            \
-        exit(EXIT_FAILURE);                     \
-    }                                           \
-} while (0)
+char *LAB2DEBUG;
+void CHECK_RESULT(int res, char *msg) {
+    if (res < 0) {
+        writeLog(logfile, "ERROR: %s: %s.", msg, strerror(errno));
+        if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
+        exit(EXIT_FAILURE);
+    }
+}
 
 #define BUF_SIZE 1024
 
@@ -96,7 +97,7 @@ void* client_handler(void* arg) {
         error_requests++;
         goto end;
     }
-    writeLog(logfile, "End request %d\n", success_requests+error_requests);
+    writeLog(logfile, "End request %d", success_requests+error_requests);
     end:
     close(clientSocket);
     free(arg);
@@ -131,7 +132,7 @@ int main(int argc, char *argv[]) {
     char *address_ip = NULL;
     char *LAB2PORT = getenv("LAB2PORT");
     int port = 0;
-    char *LAB2DEBUG = getenv("LAB2DEBUG");
+    LAB2DEBUG = getenv("LAB2DEBUG");
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: Start debugging.");
 
     for (int i = 1; i < argc; i++) {
