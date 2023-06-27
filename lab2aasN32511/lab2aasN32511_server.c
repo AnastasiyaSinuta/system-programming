@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <errno.h>
-#include <termios.h> 
+#include <termios.h>
 
 void writeLog(FILE *file, const char *format, ...) {
     time_t rawtime;
@@ -94,6 +94,9 @@ void handle_sigusr1(int sig __attribute__((unused))) {
     writeLog(logfile, "Uptime: %.2f seconds", uptime);
     writeLog(logfile, "Successful requests: %d", success_requests);
     writeLog(logfile, "Error requests: %d", error_requests);
+    fclose(logfile);
+    close(serverSocket);
+    exit(EXIT_SUCCESS);
 }
 
 void* client_handler(void* arg) {
@@ -102,7 +105,7 @@ void* client_handler(void* arg) {
     char buffer[BUF_SIZE];
 
     // Чтение данных из клиентского сокета
-    memset(buffer, 0, sizeof(buffer)); 
+    memset(buffer, 0, sizeof(buffer));
     if (read(clientSocket, buffer, sizeof(buffer) - 1) < 0) {
         error_requests++;
         writeLog(logfile, "ERROR: read: %s.", strerror(errno));
@@ -111,8 +114,7 @@ void* client_handler(void* arg) {
     writeLog(logfile, "Client: %s", buffer);
 
     // Обработка клиентского запроса
-    char *reply = malloc(sizeof(buffer));
-    reply = convertColorSpace(buffer);
+    char *reply = convertColorSpace(buffer);
     if (strstr(reply, "ERROR")) { error_requests++; } 
     else success_requests++;
 
@@ -123,7 +125,6 @@ void* client_handler(void* arg) {
         writeLog(logfile, "ERROR: write: %s.", strerror(errno));
         goto end;
     }
-    free(reply);
     end:
     // Закрытие клиентского сокета
     writeLog(logfile, "End request %d", success_requests+error_requests);
@@ -307,10 +308,10 @@ int main(int argc, char *argv[]) {
     res = listen(serverSocket, 5);
     CHECK_RESULT(res, "listen");
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: Successful listen.");
-    
+
     // Установка обработчика сигналов
-    signal(SIGINT, handle_sigint); 
-    signal(SIGTERM, handle_sigterm); 
+    signal(SIGINT, handle_sigint);
+    signal(SIGTERM, handle_sigterm);
     signal(SIGQUIT, handle_sigquit);
     signal(SIGUSR1, handle_sigusr1);
 
