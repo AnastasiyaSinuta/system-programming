@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define BUF_SIZE 1024
 char *LAB2DEBUG;
 void CHECK_RESULT(int res, char *msg) {
     if (res < 0) {
@@ -15,7 +16,7 @@ void CHECK_RESULT(int res, char *msg) {
         exit(EXIT_FAILURE);
     }
 }
-#define BUF_SIZE 1024
+
 int main(int argc, char *argv[]) {
     char *LAB2ADDR = getenv("LAB2ADDR");
     char *address_ip = NULL;
@@ -83,25 +84,30 @@ int main(int argc, char *argv[]) {
     }
     
     int clientSocket;
-    char buffer[BUF_SIZE] = {0};
-    struct sockaddr_in serverAddr = {0};
+    struct sockaddr_in serverAddr;
+    char buffer[BUF_SIZE];
 
+    // Создание сокета
     clientSocket = socket(AF_INET, SOCK_STREAM, 0);
     CHECK_RESULT(clientSocket, "socket");
-
-    serverAddr.sin_family = AF_INET; // IPv4
+    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Successful socket.\n");
     
-    if (port != 0) { serverAddr.sin_port = htons(port); }
-    else serverAddr.sin_port = htons(5555);
-    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Port to which client connects: %d\n", serverAddr.sin_port);
-
+    // Настройка серверного адреса
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET; // IPv4
     if (address_ip != NULL) { serverAddr.sin_addr.s_addr = inet_addr(address_ip); }
     else serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
     if (LAB2DEBUG) fprintf(stdout, "DEBUG: Address to which client connects: %s\n", inet_ntoa(serverAddr.sin_addr));
-
+    if (port != 0) { serverAddr.sin_port = htons(port); }
+    else serverAddr.sin_port = htons(5555);
+    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Port to which client connects: %d\n", serverAddr.sin_port);
+    
+    // Инициализация соединения на сокете
     int res = connect(clientSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
     CHECK_RESULT(res, "connect");
+    if (LAB2DEBUG) fprintf(stdout, "DEBUG: Successful connect.\n");
 
+    // Отправка данных серверу
     printf("Client: ");
     char *reply = NULL;
     size_t reply_size = 0;
@@ -115,10 +121,12 @@ int main(int argc, char *argv[]) {
     CHECK_RESULT(res, "write");
     free(reply);
 
-    res = read(clientSocket, buffer, BUF_SIZE);
+    // Чтение данных из серверного сокета 
+    res = read(clientSocket, buffer, sizeof(buffer) - 1);
     CHECK_RESULT(res, "read");
     printf("Server: %s\n", buffer);
 
+    // Закрытие клиентского сокета
     close(clientSocket);
     if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
     exit(EXIT_SUCCESS);

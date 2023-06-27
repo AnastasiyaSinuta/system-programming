@@ -13,6 +13,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <errno.h>
+#include <termios.h> 
 
 void writeLog(FILE *file, const char *format, ...) {
     time_t rawtime;
@@ -54,20 +55,36 @@ int running = 1;
 int success_requests = 0;
 int error_requests = 0;
 time_t start_time;
+int serverSocket;
 
 void handle_sigint(int sig __attribute__((unused))) {
-    writeLog(logfile, "Received SIGINT. Terminating...");
     running = 0;
+    writeLog(logfile, "Received SIGINT. Terminating...");
+    fprintf(stdout, "\n");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
+    fclose(logfile);
+    close(serverSocket);
+    exit(EXIT_SUCCESS);
 }
 
 void handle_sigterm(int sig __attribute__((unused))) {
-    writeLog(logfile, "Received SIGTERM. Terminating...");
     running = 0;
+    writeLog(logfile, "Received SIGTERM. Terminating...");
+    fprintf(stdout, "\n");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
+    fclose(logfile);
+    close(serverSocket);
+    exit(EXIT_SUCCESS);
 }
 
 void handle_sigquit(int sig __attribute__((unused))) {
-    writeLog(logfile, "Received SIGQUIT. Terminating...");
     running = 0;
+    writeLog(logfile, "Received SIGQUIT. Terminating...");
+    fprintf(stdout, "\n");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
+    fclose(logfile);
+    close(serverSocket);
+    exit(EXIT_SUCCESS);
 }
 
 void handle_sigusr1(int sig __attribute__((unused))) {
@@ -81,27 +98,36 @@ void handle_sigusr1(int sig __attribute__((unused))) {
 
 void* client_handler(void* arg) {
     writeLog(logfile, "Start request %d", success_requests+error_requests+1);
-    int clientSocket = *((int*)arg);
-    char *buffer = malloc(BUF_SIZE);
-    if (read(clientSocket, buffer, BUF_SIZE) <= 0) {
+    int clientSocket = *(int *)arg;
+    char buffer[BUF_SIZE];
+
+    // Чтение данных из клиентского сокета
+    memset(buffer, 0, sizeof(buffer)); 
+    if (read(clientSocket, buffer, sizeof(buffer) - 1) < 0) {
         error_requests++;
+        writeLog(logfile, "ERROR: read: %s.", strerror(errno));
         goto end;
     }
     writeLog(logfile, "Client: %s", buffer);
-    char *reply = convertColorSpace(buffer);
-    if (strstr(reply, "ERROR")) {
-        error_requests++;
-    } else success_requests++;
+
+    // Обработка клиентского запроса
+    char *reply = malloc(sizeof(buffer));
+    reply = convertColorSpace(buffer);
+    if (strstr(reply, "ERROR")) { error_requests++; } 
+    else success_requests++;
+
+    // Отправка данных клиенту
     writeLog(logfile, "Server: %s", reply);
     if (write(clientSocket, reply, strlen(reply)) < 0) {
         error_requests++;
+        writeLog(logfile, "ERROR: write: %s.", strerror(errno));
         goto end;
     }
-    writeLog(logfile, "End request %d", success_requests+error_requests);
+    free(reply);
     end:
+    // Закрытие клиентского сокета
+    writeLog(logfile, "End request %d", success_requests+error_requests);
     close(clientSocket);
-    free(arg);
-    free(buffer);
     pthread_exit(NULL);
 }
 
@@ -251,56 +277,59 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    int serverSocket, clientSocket;
-    struct sockaddr_in serverAddr = {0};
-    struct sockaddr_storage serverStorage;
-    socklen_t addr_size;
+    int clientSocket;
+    struct sockaddr_in serverAddr, clientAddr;
+    socklen_t client_len;
+    pthread_t tid;
     int res;
 
+    // Создание сокета
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     CHECK_RESULT(serverSocket, "socket");
-
-    serverAddr.sin_family = AF_INET; // IPv4
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Successful socket.");
     
+    // Настройка серверного адреса
+    memset(&serverAddr, 0, sizeof(serverAddr));
+    serverAddr.sin_family = AF_INET; // IPv4
+    if (address_ip != NULL) { serverAddr.sin_addr.s_addr = inet_addr(address_ip); }
+    else serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Listening address server: %s", inet_ntoa(serverAddr.sin_addr));
     if (port != 0) { serverAddr.sin_port = htons(port); }
     else serverAddr.sin_port = htons(5555);
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: Port on which it listens server: %d", serverAddr.sin_port);
 
-    if (address_ip != NULL) { serverAddr.sin_addr.s_addr = inet_addr(address_ip); }
-    else serverAddr.sin_addr.s_addr = INADDR_ANY; // inet_addr("127.0.0.1");
-    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Listening address server: %s", inet_ntoa(serverAddr.sin_addr));
-
+    // Привязка сокета к серверному адресу
     res = bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
     CHECK_RESULT(res, "bind");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Successful bind.");
     
-    // Set up signal handlers 
+    // Ожидание входящих соединений
+    res = listen(serverSocket, 5);
+    CHECK_RESULT(res, "listen");
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Successful listen.");
+    
+    // Установка обработчика сигналов
     signal(SIGINT, handle_sigint); 
     signal(SIGTERM, handle_sigterm); 
     signal(SIGQUIT, handle_sigquit);
     signal(SIGUSR1, handle_sigusr1);
 
-    start_time = time(NULL); 
-
-    while (running) {
-        res = listen(serverSocket, 5);
-        CHECK_RESULT(res, "listen");
-        addr_size = sizeof(serverStorage);
-        clientSocket = accept(serverSocket, (struct sockaddr *)&serverStorage, &addr_size);
+    while (1) {
+        // Принятие входящего соединения
+        client_len = sizeof(clientAddr);
+        clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &client_len);
         CHECK_RESULT(clientSocket, "accept");
-        if (LAB2WAIT) sleep(delay);
-        pthread_t thread;
-        int* new_sock = malloc(sizeof(int));
-        *new_sock = clientSocket;
-        if (pthread_create(&thread, NULL, client_handler, (void*)new_sock)) {
-            perror("Error creating thread");
+        if (LAB2DEBUG) writeLog(logfile, "DEBUG: Successful accept.");
+
+        // Создание потока для обработки клиентского соединения
+        if (pthread_create(&tid, NULL, client_handler, &clientSocket) != 0) { 
+            writeLog(logfile, "ERROR: pthread_create: %s.", strerror(errno));
             exit(EXIT_FAILURE);
         }
-        pthread_detach(thread);
+        pthread_detach(tid);
     }
-
-    close(serverSocket);
-    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
     fclose(logfile);
+    close(serverSocket);
     exit(EXIT_SUCCESS);
 }
 
