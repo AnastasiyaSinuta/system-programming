@@ -23,6 +23,7 @@ int delay;
 int serverSocket;
 int success_requests = 0;
 int error_requests = 0;
+int all_requests = 0;
 time_t start_time;
 int convertValueComponent(char*);
 char *convertColorSpace(char*);
@@ -68,28 +69,24 @@ void handle_signal(int sig) {
     case SIGQUIT:
         writeLog(logfile, "Received SIGQUIT. Terminating...");
         break;
+    case SIGUSR1:
+        time_t current_time = time(NULL);
+        double uptime = difftime(current_time, start_time);
+        writeLog(logfile, "Received SIGUSR1. Statistics:");
+        writeLog(logfile, "Uptime: %.2f seconds", uptime);
+        writeLog(logfile, "Successful requests: %d", success_requests);
+        writeLog(logfile, "Error requests: %d", error_requests);
+        break;
     }
-    fprintf(stdout, "\n");
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
     fclose(logfile);
     close(serverSocket);
     exit(EXIT_SUCCESS);
 }
 
-void handle_sigusr1(int sig __attribute__((unused))) {
-    time_t current_time = time(NULL);
-    double uptime = difftime(current_time, start_time);
-    writeLog(logfile, "Received SIGUSR1. Statistics:");
-    writeLog(logfile, "Uptime: %.2f seconds", uptime);
-    writeLog(logfile, "Successful requests: %d", success_requests);
-    writeLog(logfile, "Error requests: %d", error_requests);
-    fclose(logfile);
-    close(serverSocket);
-    exit(EXIT_SUCCESS);
-}
-
 void* client_handler(void* arg) {
-    writeLog(logfile, "Start request %d", success_requests+error_requests+1);
+    int current_request = ++all_requests;
+    writeLog(logfile, "Start request %d", current_request);
     int clientSocket = *(int *)arg;
     char buffer[BUF_SIZE];
 
@@ -119,12 +116,13 @@ void* client_handler(void* arg) {
     }
     end:
     // Закрытие клиентского сокета
-    writeLog(logfile, "End request %d", success_requests+error_requests);
+    writeLog(logfile, "End request %d", current_request);
     close(clientSocket);
     pthread_exit(NULL);
 }
 
 int main(int argc, char *argv[]) {
+    start_time = time(NULL);
     LAB2WAIT = getenv("LAB2WAIT");
     char *LAB2LOGFILE = getenv("LAB2LOGFILE");
     char *pathToLog = "./tmp/lab2.log";
@@ -304,7 +302,7 @@ int main(int argc, char *argv[]) {
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
     signal(SIGQUIT, handle_signal);
-    signal(SIGUSR1, handle_sigusr1);
+    signal(SIGUSR1, handle_signal);
 
     while (1) {
         // Принятие входящего соединения
