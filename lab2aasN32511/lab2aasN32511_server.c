@@ -16,7 +16,6 @@
 #include <termios.h>
 
 #define BUF_SIZE 1024
-char *LAB2WAIT;
 char *LAB2DEBUG;
 FILE * logfile;
 int delay;
@@ -100,7 +99,7 @@ void* client_handler(void* arg) {
     }
     writeLog(logfile, "Client: %s", buffer);
 
-    if (LAB2WAIT) sleep(delay);
+    sleep(delay);
     
     // Обработка клиентского запроса
     char *reply = convertColorSpace(buffer);
@@ -123,19 +122,17 @@ void* client_handler(void* arg) {
 
 int main(int argc, char *argv[]) {
     start_time = time(NULL);
-    LAB2WAIT = getenv("LAB2WAIT");
-    char *LAB2LOGFILE = getenv("LAB2LOGFILE");
     char *pathToLog = "./tmp/lab2.log";
-    if (LAB2LOGFILE) {
-        for (int i = 1; i < argc; i++) {
-            if (!strcmp(argv[i], "-l")) {
-                if (i == argc-1) {
-                    fprintf(stderr, "ERROR: The -l option needs an argument.\n");
-                    exit(EXIT_FAILURE);
-                } else {
-                    pathToLog = argv[i+1];
-                    break;
-                }
+    char *LAB2LOGFILE = getenv("LAB2LOGFILE");
+    if (LAB2LOGFILE) pathToLog = LAB2LOGFILE;
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "-l")) {
+            if (i == argc-1) {
+                fprintf(stderr, "ERROR: The -l option needs an argument.\n");
+                exit(EXIT_FAILURE);
+            } else {
+                pathToLog = argv[i+1];
+                break;
             }
         }
     }
@@ -144,13 +141,12 @@ int main(int argc, char *argv[]) {
         perror("fopen");
         exit(EXIT_FAILURE);
     }
-    char *LAB2ADDR = getenv("LAB2ADDR");
-    char *address_ip = NULL;
-    char *LAB2PORT = getenv("LAB2PORT");
-    int port = 0;
     LAB2DEBUG = getenv("LAB2DEBUG");
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: Start debugging.");
-
+    if (getenv("LAB2WAIT")) delay = atoi(getenv("LAB2WAIT"));
+    char *address_ip = getenv("LAB2ADDR");
+    int port = 0;
+    if (getenv("LAB2PORT")) port = atoi(getenv("LAB2PORT"));
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-v")) {
             if (LAB2DEBUG) writeLog(logfile, "DEBUG: --Version option called.");
@@ -175,19 +171,11 @@ int main(int argc, char *argv[]) {
             if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
             exit(EXIT_SUCCESS);
         } else if (!strcmp(argv[i], "-w")) {
-            if (LAB2WAIT) {
-                if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2WAIT environment variable enabled.");
-                if (i != argc - 1) {
-                    delay = atoi(argv[i+1]);
-                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Delay for %d second included.", delay);
-                    i++;
-                } else {
-                    writeLog(logfile, "ERROR: The -w option needs an argument.");
-                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
-                    exit(EXIT_FAILURE);
-                }
+            if (i != argc - 1) {
+                delay = atoi(argv[i+1]);
+                i++;
             } else {
-                writeLog(logfile, "ERROR: To work with the -w option, enable the LAB2WAIT environment variable.");
+                writeLog(logfile, "ERROR: The -w option needs an argument.");
                 if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
                 exit(EXIT_FAILURE);
             }
@@ -220,43 +208,24 @@ int main(int argc, char *argv[]) {
             close(STDOUT_FILENO);
             close(STDERR_FILENO);
         } else if (!strcmp(argv[i], "-l")) {
-            if (LAB2LOGFILE) {
-                if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2LOGFILE environment variable enabled.");
+            i++;
+            break; 
+        } 
+        else if (!strcmp(argv[i], "-a")) {
+            if (i != argc-1) {
+                address_ip = strdup(argv[i+1]);
                 i++;
             } else {
-                writeLog(logfile, "ERROR: To work with the -l option, enable the LAB2LOGFILE environment variable.");
-                if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
-                exit(EXIT_FAILURE);
-            }
-        } else if (!strcmp(argv[i], "-a")) {
-            if (LAB2ADDR) {
-                if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2ADDR environment variable enabled.");
-                if (i != argc-1) {
-                    address_ip = strdup(argv[i+1]);
-                    i++;
-                } else {
-                    writeLog(logfile, "ERROR: The -a option needs an argument.");
-                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
-                    exit(EXIT_FAILURE);
-                }
-            } else {
-                writeLog(logfile,"ERROR: To work with the -a option, enable the LAB2ADDR environment variable.");
+                writeLog(logfile, "ERROR: The -a option needs an argument.");
                 if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
                 exit(EXIT_FAILURE);
             }
         } else if (!strcmp(argv[i], "-p")) {
-            if (LAB2PORT) {
-                if (LAB2DEBUG) writeLog(logfile, "DEBUG: LAB2PORT environment variable enabled.");
-                if (i != argc-1) {
-                    port = atoi(argv[i+1]);
-                    i++;
-                } else {
-                    writeLog(logfile, "ERROR: The -p option needs an argument.");
-                    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
-                    exit(EXIT_FAILURE);
-                }
+            if (i != argc-1) {
+                port = atoi(argv[i+1]);
+                i++;
             } else {
-                writeLog(logfile,"ERROR: To work with the -p option, enable the LAB2PORT environment variable.");
+                writeLog(logfile, "ERROR: The -p option needs an argument.");
                 if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
                 exit(EXIT_FAILURE);
             }
@@ -266,6 +235,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
+    if (LAB2DEBUG) writeLog(logfile, "DEBUG: Delay for %d second included.", delay);
     
     int clientSocket;
     struct sockaddr_in serverAddr, clientAddr;
@@ -341,7 +311,7 @@ char *convertColorSpace(char *request) {
 
     // Проверяем наличие всех компонент и их валидность
     if (space == NULL || value1 == NULL || value2 == NULL || value3 == NULL) {
-        result = strdup("ERROR 1"); // Ошибка: недостаточно компонент
+        result = "ERROR 1"; // Ошибка: недостаточно компонент
         free(buffer);
         return result;
     }
@@ -350,7 +320,7 @@ char *convertColorSpace(char *request) {
     int comp2 = convertValueComponent(value2);
     int comp3 = convertValueComponent(value3);
     if (comp1 == -1 || comp2 == -1 || comp3 == -1) {
-        result = strdup("ERROR 2"); // Ошибка: недопустимый символ в строке
+        result = "ERROR 2"; // Ошибка: недопустимый символ в строке
         free(buffer);
         return result;
     }
@@ -361,7 +331,7 @@ char *convertColorSpace(char *request) {
         double b = comp3;
 
         if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
-            result = strdup("ERROR 4"); // Ошибка: недопустимое значение цвета
+            result = "ERROR 4"; // Ошибка: недопустимое значение цвета
             free(buffer);
             return result;
         }
@@ -390,16 +360,16 @@ char *convertColorSpace(char *request) {
         if (delta == 0) { s = 0; }
         else s = delta / (1 - fabs(2 * l - 1));
 
-        char answer[BUF_SIZE];
+        char* answer = malloc(BUF_SIZE * sizeof(char));
         sprintf(answer, "HSL %.2f %.2f %.2f", h, s, l);
-        result = strdup(answer);
+        result = answer;
     } else if (!strcmp(space, "HSL") || !strcmp(space, "hsl")) {
         double h = comp1;
         double s = comp2 / 100.0;
         double l = comp3 / 100.0;
 
         if (h < 0 || h > 360 || s < 0 || s > 1 || l < 0 || l > 1) {
-            result = strdup("ERROR 4"); // Ошибка: недопустимое значение цвета
+            result = "ERROR 4"; // Ошибка: недопустимое значение цвета
             free(buffer);
             return result;
         }
@@ -440,11 +410,11 @@ char *convertColorSpace(char *request) {
         int green = (int)((g + m) * 255);
         int blue = (int)((b + m) * 255);
 
-        char *answer = malloc(BUF_SIZE);
+        char* answer = malloc(BUF_SIZE * sizeof(char));
         sprintf(answer, "RGB %d %d %d", red, green, blue);
-        result = strdup(answer);
+        result = answer;
     } else {
-        result = strdup("ERROR 3"); // Ошибка: неподдерживаемое цветовое пространство
+        result = "ERROR 3"; // Ошибка: неподдерживаемое цветовое пространство
         free(buffer);
         return result;
     }

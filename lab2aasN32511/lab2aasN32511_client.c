@@ -18,10 +18,9 @@ void CHECK_RESULT(int res, char *msg) {
 }
 
 int main(int argc, char *argv[]) {
-    char *LAB2ADDR = getenv("LAB2ADDR");
-    char *address_ip = NULL;
-    char *LAB2PORT = getenv("LAB2PORT");
+    char *address_ip = getenv("LAB2ADDR");
     int port = 0;
+    if (getenv("LAB2PORT")) port = atoi(getenv("LAB2PORT"));
     LAB2DEBUG = getenv("LAB2DEBUG");
     if (LAB2DEBUG) fprintf(stdout, "DEBUG: Start debugging.\n");
 
@@ -46,34 +45,20 @@ int main(int argc, char *argv[]) {
             if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
             exit(EXIT_SUCCESS);
         } else if (!strcmp(argv[i], "-a")) {
-            if (LAB2ADDR) {
-                if (LAB2DEBUG) fprintf(stdout, "DEBUG: LAB2ADDR environment variable enabled.\n");
-                if (i != argc-1) {
-                    address_ip = argv[i+1];
-                    i++;
-                } else {
-                    fprintf(stdout, "ERROR: The -a option needs an argument.\n");
-                    if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
-                    exit(EXIT_FAILURE);
-                }
+            if (i != argc-1) {
+                address_ip = argv[i+1];
+                i++;
             } else {
-                fprintf(stdout,"ERROR: To work with the -a option, enable the LAB2ADDR environment variable.\n");
+                fprintf(stdout, "ERROR: The -a option needs an argument.\n");
                 if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
                 exit(EXIT_FAILURE);
             }
         } else if (!strcmp(argv[i], "-p")) {
-            if (LAB2PORT) {
-                if (LAB2DEBUG) fprintf(stdout, "DEBUG: LAB2PORT environment variable enabled.\n");
-                if (i != argc-1) {
-                    port = atoi(argv[i+1]);
-                    i++;
-                } else {
-                    fprintf(stdout, "ERROR: The -p option needs an argument.\n");
-                    if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
-                    exit(EXIT_FAILURE);
-                }
+            if (i != argc-1) {
+                port = atoi(argv[i+1]);
+                i++;
             } else {
-                fprintf(stdout,"ERROR: To work with the -p option, enable the LAB2PORT environment variable.\n");
+                fprintf(stdout, "ERROR: The -p option needs an argument.\n");
                 if (LAB2DEBUG) fprintf(stdout, "DEBUG: End debugging.\n");
                 exit(EXIT_FAILURE);
             }
