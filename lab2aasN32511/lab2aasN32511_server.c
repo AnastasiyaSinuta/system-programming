@@ -15,6 +15,18 @@
 #include <errno.h>
 #include <termios.h>
 
+#define BUF_SIZE 1024
+char *LAB2WAIT;
+char *LAB2DEBUG;
+FILE * logfile;
+int delay;
+int serverSocket;
+int success_requests = 0;
+int error_requests = 0;
+time_t start_time;
+int convertValueComponent(char*);
+char *convertColorSpace(char*);
+
 void writeLog(FILE *file, const char *format, ...) {
     time_t rawtime;
     struct tm *timeinfo;
@@ -34,10 +46,9 @@ void writeLog(FILE *file, const char *format, ...) {
     va_end(args);
 
     fprintf(file, "\n");
+    fflush(file);
 }
 
-FILE * logfile;
-char *LAB2DEBUG;
 void CHECK_RESULT(int res, char *msg) {
     if (res < 0) {
         writeLog(logfile, "ERROR: %s: %s.", msg, strerror(errno));
@@ -46,40 +57,18 @@ void CHECK_RESULT(int res, char *msg) {
     }
 }
 
-#define BUF_SIZE 1024
-
-int convertValueComponent(char *);
-char *convertColorSpace(char *);
-
-int running = 1;
-int success_requests = 0;
-int error_requests = 0;
-time_t start_time;
-int serverSocket;
-
-void handle_sigint(int sig __attribute__((unused))) {
-    running = 0;
-    writeLog(logfile, "Received SIGINT. Terminating...");
-    fprintf(stdout, "\n");
-    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
-    fclose(logfile);
-    close(serverSocket);
-    exit(EXIT_SUCCESS);
-}
-
-void handle_sigterm(int sig __attribute__((unused))) {
-    running = 0;
-    writeLog(logfile, "Received SIGTERM. Terminating...");
-    fprintf(stdout, "\n");
-    if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
-    fclose(logfile);
-    close(serverSocket);
-    exit(EXIT_SUCCESS);
-}
-
-void handle_sigquit(int sig __attribute__((unused))) {
-    running = 0;
-    writeLog(logfile, "Received SIGQUIT. Terminating...");
+void handle_signal(int sig) {
+    switch (sig) {
+    case SIGINT:
+        writeLog(logfile, "Received SIGINT. Terminating...");
+        break;
+    case SIGTERM:
+        writeLog(logfile, "Received SIGTERM. Terminating...");
+        break;
+    case SIGQUIT:
+        writeLog(logfile, "Received SIGQUIT. Terminating...");
+        break;
+    }
     fprintf(stdout, "\n");
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: End debugging.");
     fclose(logfile);
@@ -106,21 +95,24 @@ void* client_handler(void* arg) {
 
     // Чтение данных из клиентского сокета
     memset(buffer, 0, sizeof(buffer));
-    if (read(clientSocket, buffer, sizeof(buffer) - 1) < 0) {
+    ssize_t n = read(clientSocket, buffer, sizeof(buffer) - 1);
+    if (n < 0) {
         error_requests++;
         writeLog(logfile, "ERROR: read: %s.", strerror(errno));
         goto end;
     }
     writeLog(logfile, "Client: %s", buffer);
 
+    if (LAB2WAIT) sleep(delay);
+    
     // Обработка клиентского запроса
     char *reply = convertColorSpace(buffer);
-    if (strstr(reply, "ERROR")) { error_requests++; } 
+    if (strstr(reply, "ERROR")) { error_requests++; }
     else success_requests++;
 
     // Отправка данных клиенту
     writeLog(logfile, "Server: %s", reply);
-    if (write(clientSocket, reply, strlen(reply)) < 0) {
+    if (write(clientSocket, reply, n) < 0) {
         error_requests++;
         writeLog(logfile, "ERROR: write: %s.", strerror(errno));
         goto end;
@@ -133,8 +125,7 @@ void* client_handler(void* arg) {
 }
 
 int main(int argc, char *argv[]) {
-    char *LAB2WAIT = getenv("LAB2WAIT");
-    int delay = 0;
+    LAB2WAIT = getenv("LAB2WAIT");
     char *LAB2LOGFILE = getenv("LAB2LOGFILE");
     char *pathToLog = "./tmp/lab2.log";
     if (LAB2LOGFILE) {
@@ -310,9 +301,9 @@ int main(int argc, char *argv[]) {
     if (LAB2DEBUG) writeLog(logfile, "DEBUG: Successful listen.");
 
     // Установка обработчика сигналов
-    signal(SIGINT, handle_sigint);
-    signal(SIGTERM, handle_sigterm);
-    signal(SIGQUIT, handle_sigquit);
+    signal(SIGINT, handle_signal);
+    signal(SIGTERM, handle_signal);
+    signal(SIGQUIT, handle_signal);
     signal(SIGUSR1, handle_sigusr1);
 
     while (1) {
